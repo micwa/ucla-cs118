@@ -29,10 +29,16 @@ Steps:
         - getaddrinfo() for IP
         - socket() to create socket
         - connect() to connect to server
+        [non-persistent]
         - retrieve file:
             - create HTTP request
             - send() the request
             - recv(), with timeout, the response
+        [persistent]
+        - attempt to retrieve multiple files:
+            - retrieve first file (as above)
+            - if supports HTTP/1.1, retrieve more files;
+              else, do nothing
         - close() the connection
 
 Server
@@ -44,8 +50,20 @@ Steps:
 Pitfalls
 ========
 
-- send() does not always send all data
-    - have a send_all() that retries if portion of data is unsent
-- recv() receives raw data which needs to be decoded
-    - recvHttpRequest() used by server
-    - recvHttpResponse() used by client
+- sending/receiving data:
+    - send() does not always send all data
+        - have a send_all() that retries if portion of data is unsent
+    - recv() receives raw data which needs to be decoded
+        - recvHttpRequest() used by server
+        - recvHttpResponse() used by client
+- client error handling:
+    - exit when error (return status == -1) on:
+        - getaddrinfo()
+        - socket()
+        - connect()
+        - send()
+        - recv()
+        - close()
+    - also exit when:
+        - recv() == 0 (EOF) immediately after send()
+        - recv() timeouts
