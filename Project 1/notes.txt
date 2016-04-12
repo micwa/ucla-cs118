@@ -1,0 +1,51 @@
+[Notes]
+
+HTTP messages
+=============
+
+Request format
+    - first line:
+        - GET <url> HTTP/<version>
+    - required headers:
+        - Host
+    - support for:
+        - Connection
+    - last line is empty, i.e., ends with "\r\n\r\n"
+Response format:
+    - first line (status):
+        - HTTP/<version> <status code> <status description>
+    - required headers:
+        - Content-Length (if OK)
+    - support for:
+        - Connection
+    - empty line separates header and payload
+
+Client
+======
+
+Steps:
+    - parse URL(s) into a map(HOST => [FILES])
+    - while there is still files to retrieve:
+        - getaddrinfo() for IP
+        - socket() to create socket
+        - connect() to connect to server
+        - retrieve file:
+            - create HTTP request
+            - send() the request
+            - recv(), with timeout, the response
+        - close() the connection
+
+Server
+======
+
+Steps:
+    - etc.
+
+Pitfalls
+========
+
+- send() does not always send all data
+    - have a send_all() that retries if portion of data is unsent
+- recv() receives raw data which needs to be decoded
+    - recvHttpRequest() used by server
+    - recvHttpResponse() used by client
