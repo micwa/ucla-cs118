@@ -6,9 +6,27 @@ HttpMessage::HttpMessage(const string firstLine)
     : firstLine_(firstLine)
 {}
 
+// Return the HTTP version (or "" if the first line was set incorrectly).
 string HttpMessage::getHttpVersion() const
 {
-    // parse header line
+    return httpVersion_;
+}
+
+string HttpMessage::getFirstLine() const
+{
+    return firstLine_;
+}
+
+// Set the first line of the HttpMessage (also extracts the HTTP version for
+// this message).
+void HttpMessage::setFirstLine(const string firstLine)
+{
+    firstLine_ = firstLine;
+    int i = firstLine_.find("HTTP/");
+    if (i == string::npos || i + 7 >= firstLine_.size())
+        httpVersion_ = "";
+    else
+        httpVersion_ = firstLine_.substr(i + 5, 3);
 }
 
 string HttpMessage::getHeader(const string header) const
