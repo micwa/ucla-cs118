@@ -11,10 +11,10 @@ string HttpMessage::getHttpVersion() const
     // parse header line
 }
 
-string HttpMessage::getHeader(const string header)
+string HttpMessage::getHeader(const string header) const
 {
     if (headers_.count(header) > 0)
-        return headers_[header];
+        return headers_.at(header);
     else
         return "";
 }
