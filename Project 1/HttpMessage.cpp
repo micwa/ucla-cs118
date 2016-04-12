@@ -11,7 +11,7 @@ string HttpMessage::getHttpVersion() const
     // parse header line
 }
 
-string HttpMessage::getHeader(const string header) const
+string HttpMessage::getHeader(const string header)
 {
     if (headers_.count(header) > 0)
         return headers_[header];

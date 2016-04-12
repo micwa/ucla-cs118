@@ -11,7 +11,7 @@ public:
     HttpMessage(std::string firstLine);
 
     std::string getHttpVersion() const;
-    std::string getHeader(const std::string header) const;
+    std::string getHeader(const std::string header);
     void setHeader(const std::string header, const std::string value);
     std::string getPayload() const;
     void setPayload(const std::string payload);
