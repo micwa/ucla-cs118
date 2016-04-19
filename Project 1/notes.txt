@@ -25,7 +25,7 @@ Client
 
 Steps:
     - parse URL(s) into a map(HOST => [FILES])
-    - while there is still files to retrieve:
+    - while there are still files to retrieve (i.e., for each HOST):
         - getaddrinfo() for IP
         - socket() to create socket
         - connect() to connect to server
@@ -35,10 +35,15 @@ Steps:
             - send() the request
             - recv(), with timeout, the response
         [persistent]
-        - attempt to retrieve multiple files:
+        - attempt to retrieve multiple files (from same HOST):
             - retrieve first file (as above)
+            [non-pipelined]
             - if supports HTTP/1.1, retrieve more files;
-              else, do nothing
+              else, do nothing (continue)
+            [pipelined]
+            - if supports HTTP/1.1, send requests for all files;
+              discount all files that failed to send()
+            - recv(), with timeout, all responses
         - close() the connection
 
 Server
