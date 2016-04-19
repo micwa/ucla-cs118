@@ -50,7 +50,28 @@ Server
 ======
 
 Steps:
-    - etc.
+    - chdir() to change directory to PATH
+    - getaddrinfo() for IP
+    - socket() to create socket
+    - bind() to bind to IP:PORT
+    - listen() for connection
+    - while true:
+        [multi-threaded]
+        - tmp_sock = accept() the connection
+        - spawn new thread to handleConnection(tmp_sock)
+        [single-threaded, using select()]
+        ...
+    where
+    handleConnection(int sockfd)
+        [non-persistent]
+        - recv(), with timeout, the response
+        - send() the data
+        - close() the connection
+        [persistent, pipelined]
+        - recv(), with timeout, the response;
+          if timeout or EOF, close() the connection
+        - send() the data
+        - go to beginning
 
 Pitfalls
 ========
