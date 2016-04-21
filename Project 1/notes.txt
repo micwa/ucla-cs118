@@ -116,3 +116,20 @@ Pitfalls
         - socket()
         - bind()
         - listen()
+- function return values on error:
+    - getaddrinfo():
+        - returns nonzero, check gai_strerror(int)
+    - socket(), connect(), bind(), listen(), accept(), close():
+        - returns -1, check errno
+    - send():
+        - returns -1, check errno; else returns number of bytes sent
+    - recv():
+        - returns -1, check errno
+        - if remote closed connection, returns 0; else returns bytes received
+
+Other
+=====
+
+- other (possibly) useful functions:
+    - setsockopt()
+    - getsockname()
