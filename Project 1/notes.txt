@@ -50,7 +50,7 @@ Server
 ======
 
 Steps:
-    - chdir() to change directory to PATH
+    - store PATH (directory) as variable
     - getaddrinfo() for IP
     - socket() to create socket
     - bind() to bind to IP:PORT
@@ -60,24 +60,35 @@ Steps:
         - tmp_sock = accept() the connection
         - spawn new thread to handleConnection(tmp_sock)
         [single-threaded, using select()]
-        ...
+        - maintain map<int, time_t> openConns of open connections,
+          mapping socket -> time last active
+        - select(), with timeout, until socket sock_ready is available
+        - if sock_ready == listening socket:
+            - tmp_sock = accept() the connection
+            - openConns[tmp_sock] = getCurrentTime()
+        - else if sock_ready == socket in openConns:
+            [persistent, pipelined]
+            - recv() the data
+            - send() the response
+            [non-persistent - it's more complicated than persistent, so not going to bother]
+        - close() all connections in openConns that are "timed out"
     where
     handleConnection(int sockfd)
         [non-persistent]
-        - recv(), with timeout, the response
-        - send() the data
+        - recv(), with timeout, the request
+        - send() the response
         - close() the connection
         [persistent, pipelined]
-        - recv(), with timeout, the response;
-          if timeout or EOF, close() the connection
-        - send() the data
-        - go to beginning
+        - while true:
+            - recv(), with timeout, the request;
+              if timeout or EOF, close() the connection
+            - send() the response
 
 Pitfalls
 ========
 
 - sending/receiving data:
-    - send() does not always send all data
+    - send() does not always send all data (same for recv() for receiving)
         - have a send_all() that retries if portion of data is unsent
     - recv() receives raw data which needs to be decoded
         - recvHttpRequest() used by server
@@ -93,3 +104,9 @@ Pitfalls
     - also exit when:
         - recv() == 0 (EOF) immediately after send()
         - recv() timeouts
+- server error handling:
+    - exit on:
+        - getaddrinfo()
+        - socket()
+        - bind()
+        - listen()
