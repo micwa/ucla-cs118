@@ -5,7 +5,7 @@ HTTP messages
 
 Request format
     - first line:
-        - GET <url> HTTP/<version>
+        - GET <path> HTTP/<version>
     - required headers:
         - Host
     - support for:
@@ -15,7 +15,7 @@ Response format:
     - first line (status):
         - HTTP/<version> <status code> <status description>
     - required headers:
-        - Content-Length (if OK)
+        - Content-Length (if OK and sending payload)
     - support for:
         - Connection
     - empty line separates header and payload
