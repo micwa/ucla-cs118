@@ -14,13 +14,15 @@ std::string HttpStatusDescription(int status)
         return "Bad request";
     case 404:
         return "Not found";
+    default:
+        return "";
     }
 }
 
 inline
 std::string ConstructGetRequest(std::string version, std::string path)
 {
-    return "GET " + path + "HTTP/" + version;
+    return "GET " + path + " HTTP/" + version;
 }
 
 inline
