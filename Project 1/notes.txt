@@ -34,6 +34,7 @@ Steps:
             - create HTTP request
             - send() the request
             - recv(), with timeout, the response
+            - if not 404, save the file
         [persistent]
         - attempt to retrieve multiple files (from same HOST):
             - retrieve first file (as above)
@@ -43,7 +44,7 @@ Steps:
             [pipelined]
             - if supports HTTP/1.1, send requests for all files;
               discount all files that failed to send()
-            - recv(), with timeout, all responses
+            - recv() and save, with timeout, all responses
         - close() the connection
 
 Server
@@ -52,36 +53,41 @@ Server
 Steps:
     - store PATH (directory) as variable
     - getaddrinfo() for IP
-    - socket() to create socket
+    - socket() to create socket listen_socket
     - bind() to bind to IP:PORT
-    - listen() for connection
+    - listen() for connection on listen_socket
     - while true:
         [multi-threaded]
         - tmp_sock = accept() the connection
-        - spawn new thread to handleConnection(tmp_sock)
+        - spawn thread new_thread to handleConnection(tmp_sock)
+        - new_thread.detach()               // So no need to join()
         [single-threaded, using select()]
         - maintain map<int, time_t> openConns of open connections,
-          mapping socket -> time last active
+          mapping socket -> (time last active)
         - select(), with timeout, until socket sock_ready is available
         - if sock_ready == listening socket:
             - tmp_sock = accept() the connection
             - openConns[tmp_sock] = getCurrentTime()
         - else if sock_ready == socket in openConns:
             [persistent, pipelined]
-            - recv() the data
+            - recv() the request
+            - create HttpResponse
             - send() the response
+            - update openConns[tmp_sock] to getCurrentTime()
             [non-persistent - it's more complicated than persistent, so not going to bother]
         - close() all connections in openConns that are "timed out"
     where
     handleConnection(int sockfd)
         [non-persistent]
         - recv(), with timeout, the request
+        - create HttpResponse
         - send() the response
         - close() the connection
         [persistent, pipelined]
         - while true:
             - recv(), with timeout, the request;
-              if timeout or EOF, close() the connection
+              if timeout or EOF, close() the connection and break
+            - create HttpResponse
             - send() the response
 
 Pitfalls
