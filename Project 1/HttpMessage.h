@@ -1,3 +1,6 @@
+#ifndef HTTP_MESSAGE_H_
+#define HTTP_MESSAGE_H_
+
 #include <string>
 #include <unordered_map>
 
@@ -23,3 +26,5 @@ public:
     // Returns a string representation of this HttpMessage
     std::string toString();
 };
+
+#endif /* HTTP_MESSAGE_H_ */
