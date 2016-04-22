@@ -16,9 +16,9 @@ std::string ConstructStatusLine(std::string version, int status);
 
 /* SOCKET RELATED */
 
-// Read a line from sockfd terminated by "terminator" and store it in result.
+// Read a line from sockfd terminated by "term" and store it in result.
 // Returns 0 if the socket returns EOF immediately, -1 if there is an error, and result.size() otherwise.
-int readline(int sockfd, std::string& result, const std::string terminator = "\r\n");
+int readline(int sockfd, std::string& result, const std::string term = "\r\n");
 
 // Send data through the socket sockfd.
 // Returns true if the data was sent successfully, and false if there was an error.

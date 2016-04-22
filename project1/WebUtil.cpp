@@ -1,5 +1,8 @@
 #include "WebUtil.h"
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
 using namespace std;
 
 /* HTTP RELATED */
@@ -32,12 +35,38 @@ string ConstructStatusLine(string version, int status)
 
 /* SOCKET RELATED */
 
-int readline(int sockfd, string& result, const string terminator)
+int readline(int sockfd, string& result, const string term)
 {
-    return -1;
+    char buf;
+    int n = term.size();
+
+    result = "";
+    while (result.size() < n || result.substr(result.size() - n, n) != term)
+    {
+        // Recv() one byte at a time
+        int received = recv(sockfd, &buf, 1, 0);
+        if (received == 0)
+            return 0;
+        else if (received == -1)
+            return -1;
+        result += buf;
+    }
+    return result.size();
 }
 
-bool sendall(int sockfd, const string& data)
+bool sendAll(int sockfd, const string& data)
 {
-    return false;
+    int total = 0;
+    int bytesLeft = data.size();
+    const char *buf = data.c_str();
+
+    while (total < data.size())
+    {
+        int sent = send(sockfd, buf + total, bytesLeft, 0);
+        if (sent == -1)
+            return false;
+        total += sent;
+        bytesLeft -= sent;
+    }
+    return true;
 }
