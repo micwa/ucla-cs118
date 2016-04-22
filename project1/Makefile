@@ -2,13 +2,9 @@
 CC = g++
 
 SOURCES = \
-  HttpMessage.cpp
+  HttpMessage.cpp \
+  WebUtil.cpp
 OBJS = $(subst .cpp,.o,$(SOURCES))
-HEADERS = \
-  HttpRequest.h \
-  HttpResponse.h \
-  HttpMessage.h \
-  WebUtil.h
 
 CFLAGS = -g -Wall -Wpedantic -Wextra -Wshadow -Wno-sign-compare \
 		 	-pthread -std=c++11 -O2
