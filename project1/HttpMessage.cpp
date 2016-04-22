@@ -4,17 +4,8 @@ using namespace std;
 
 HttpMessage::HttpMessage(const string firstLine)
     : firstLine_(firstLine)
-{}
-
-// Return the HTTP version (or "" if the first line was set incorrectly).
-string HttpMessage::getHttpVersion() const
 {
-    return httpVersion_;
-}
-
-string HttpMessage::getFirstLine() const
-{
-    return firstLine_;
+    setFirstLine(firstLine);
 }
 
 // Set the first line of the HttpMessage (also extracts the HTTP version for
@@ -27,6 +18,17 @@ void HttpMessage::setFirstLine(const string firstLine)
         httpVersion_ = "";
     else
         httpVersion_ = firstLine_.substr(i + 5, 3);
+}
+
+// Return the HTTP version (or "" if the first line was set incorrectly).
+string HttpMessage::getHttpVersion() const
+{
+    return httpVersion_;
+}
+
+string HttpMessage::getFirstLine() const
+{
+    return firstLine_;
 }
 
 string HttpMessage::getHeader(const string header) const
