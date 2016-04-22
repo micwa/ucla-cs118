@@ -1,5 +1,6 @@
 #include "FileResponse.h"
 #include "WebUtil.h"
+#include "logerr.h"
 
 #include <iostream>
 #include <fstream>
@@ -41,6 +42,7 @@ bool FileResponse::sendResponse(int sockfd, const string& baseDir)
         string filepath = line.substr(firstSpace + 1, secondSpace - firstSpace - 1);
 
         // Read file, and 404 if not found (or I/O error)
+        _DEBUG("Request OK, reading from: " + baseDir + filepath);
         ifstream ifs(baseDir + filepath);
         if (ifs.fail())
             status = 404;
@@ -56,12 +58,14 @@ bool FileResponse::sendResponse(int sockfd, const string& baseDir)
     }
     else                // Request was received, but malformed
     {
+        _DEBUG("Request not OK");
         status = 400;
     }
     
     // Delete old response and construct new one
     delete response_;
     response_ = new HttpResponse(httpVersion, status, payload);
+    _DEBUG("Created HttpResponse with version " + httpVersion + ", status " + to_string(status));
 
     return sendAll(sockfd, response_->toString());
 }
