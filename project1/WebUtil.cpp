@@ -150,10 +150,8 @@ int readline(int sockfd, string& result, const string term)
     {
         // Recv() one byte at a time
         int res = recvWithTimeout(sockfd, &buf, 1, RECV_TIMEOUT_SECS);
-        if (res == 0)
-            return 0;
-        else if (res == -1)
-            return -1;
+        if (res == 0 || res == -1)
+            return res;
         result += buf;
     }
     _DEBUG("Read line: " + result);
@@ -194,13 +192,19 @@ int recvWithTimeout(int sockfd, char *buf, int nbytes, int timeout)
     // Wait for recv() or timeout
     int res = select(sockfd + 1, &readfds, NULL, NULL, &tv);
     if (res == 0 || res == -1)
+    {
+        _ERROR("recv() timed out");
         return -1;
+    }
 
     // Return recv(), basically; if for some reason sockfd is not set, return error
     if (FD_ISSET(sockfd, &readfds))
         return recv(sockfd, buf, nbytes, 0);
     else
+    {
+        _ERROR("select() erroneously unblocked");
         return -1;
+    }
 }
 
 bool sendAll(int sockfd, const string& data)
