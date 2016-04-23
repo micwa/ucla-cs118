@@ -1,15 +1,15 @@
 #ifndef FILE_RESPONSE_H_
 #define FILE_RESPONSE_H_
 
-#include "HttpRequest.h"
-#include "HttpResponse.h"
-
 #include <string>
+
+class HttpRequest;
+class HttpResponse;
 
 class FileResponse
 {
 private:
-    std::string httpVersion_;
+    std::string httpVersion_;   // HTTP version from request
     HttpRequest *request_;
     HttpResponse *response_;
 public:

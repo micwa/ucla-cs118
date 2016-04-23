@@ -181,16 +181,16 @@ int readlinesUntilEmpty(int sockfd, vector<string>& lines)
 
 int recvWithTimeout(int sockfd, char *buf, int nbytes, int timeout)
 {
-    fd_set readfds;
-    FD_ZERO(&readfds);
-    FD_SET(sockfd, &readfds);
+    fd_set readset;
+    FD_ZERO(&readset);
+    FD_SET(sockfd, &readset);
 
     struct timeval tv;
     tv.tv_sec = timeout;
     tv.tv_usec = 0;
 
     // Wait for recv() or timeout
-    int res = select(sockfd + 1, &readfds, NULL, NULL, &tv);
+    int res = select(sockfd + 1, &readset, NULL, NULL, &tv);
     if (res == 0 || res == -1)
     {
         _ERROR("recv() timed out");
@@ -198,7 +198,7 @@ int recvWithTimeout(int sockfd, char *buf, int nbytes, int timeout)
     }
 
     // Return recv(), basically; if for some reason sockfd is not set, return error
-    if (FD_ISSET(sockfd, &readfds))
+    if (FD_ISSET(sockfd, &readset))
         return recv(sockfd, buf, nbytes, 0);
     else
     {
