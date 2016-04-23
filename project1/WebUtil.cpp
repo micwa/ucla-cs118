@@ -1,3 +1,4 @@
+#include "HttpRequest.h"
 #include "WebUtil.h"
 #include "logerr.h"
 
@@ -66,6 +67,25 @@ string httpStatusDescription(int status)
     default:
         return "";
     }
+}
+
+HttpRequest *makeHttpRequest(string httpVersion, string host, string path,
+                             const vector<string>& headerLines)
+{
+    HttpRequest *request = new HttpRequest(httpVersion, host, path);
+
+    for (string line : headerLines)
+    {
+         string header, value;
+         if (splitHeaderLine(line, header, value))
+             request->setHeader(header, value);
+         else
+         {
+             delete request;
+             return nullptr;
+         }
+    }
+    return request;
 }
 
 // Returns the first non-whitespace character, starting from start.

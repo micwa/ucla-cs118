@@ -6,6 +6,7 @@
 
 /* HTTP RELATED */
 
+class HttpRequest;
 const std::string CRLF = "\r\n";
 
 // Return the first line of a HTTP GET request.
@@ -25,6 +26,12 @@ std::string getPathFromRequestLine(const std::string& line);
 
 // Returns the HTTP status description corresponding to the status.
 std::string httpStatusDescription(int status);
+
+// Returns a newly created HttpRequest constructed using the given
+// (httpVersion, host, path) and headerLines.
+// If any of the header lines are malformed, returns nullptr.
+HttpRequest *makeHttpRequest(std::string httpVersion, std::string host, std::string path,
+                             const std::vector<std::string>& headerLines);
 
 // Parses the line into "header: value".
 // Returns true if line is a valid header line, and false if not.
