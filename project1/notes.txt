@@ -20,6 +20,21 @@ Response format:
         - Connection
     - empty line separates header and payload
 
+Implementation (classes)
+========================
+
+FileResponse
+    - recvRequest(sockfd)
+        - readline() for first line
+            - recvWithTimeout()
+        - readlinesUntilEmpty() for the rest
+            - readline()
+                - recvWithTimeout()
+        - makeHttpRequest() to make HttpRequest
+    - sendRequest(sockfd)
+        - ifstream to read file
+        - sendAll() to send HttpResponse
+
 Client
 ======
 
