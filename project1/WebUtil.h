@@ -6,29 +6,31 @@
 
 /* HTTP RELATED */
 
+const std::string CRLF = "\r\n";
+
 // Return the first line of a HTTP GET request.
-std::string ConstructGetRequest(std::string version, std::string path);
+std::string constructGetRequest(std::string version, std::string path);
 
 // Return the first line of a HTTP response.
-std::string ConstructStatusLine(std::string version, int status);
+std::string constructStatusLine(std::string version, int status);
 
 // Returns the version after "HTTP/", or "" if there's no version.
-std::string GetVersionFromLine(const std::string& line);
+std::string getVersionFromLine(const std::string& line);
 
 // Returns the status code from the status line, or -1 if there's no status code.
-int GetStatusCodeFromStatusLine(const std::string& line);
+int getStatusCodeFromStatusLine(const std::string& line);
 
-// Return the path from the request line, or "" if there's no path.
-std::string GetPathFromRequestLine(const std::string& line);
+// Returns the path from the request line, or "" if there's no path.
+std::string getPathFromRequestLine(const std::string& line);
 
-// Return the HTTP status description corresponding to the status.
-std::string HttpStatusDescription(int status);
+// Returns the HTTP status description corresponding to the status.
+std::string httpStatusDescription(int status);
 
 /* SOCKET RELATED */
 
 // Read a line from sockfd terminated by "term" and store it in result.
 // Returns 0 if the socket returns EOF, -1 if there is an error, and result.size() otherwise.
-int readline(int sockfd, std::string& result, const std::string term = "\r\n");
+int readline(int sockfd, std::string& result, const std::string term = CRLF);
 
 // Read lines, using readline(), from sockfd until an empty line is encountered.
 // Returns 0 if the socket returns EOF, -1 if there is an error, and the total number of bytes

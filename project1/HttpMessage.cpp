@@ -14,7 +14,7 @@ HttpMessage::HttpMessage(const string firstLine)
 void HttpMessage::setFirstLine(const string firstLine)
 {
     firstLine_ = firstLine;
-    httpVersion_ = GetVersionFromLine(firstLine);
+    httpVersion_ = getVersionFromLine(firstLine);
 }
 
 // Return the HTTP version (or "" if the first line was set incorrectly).
@@ -55,7 +55,6 @@ void HttpMessage::setPayload(const string payload)
 // Returns a string representation of this HttpMessage
 string HttpMessage::toString()
 {
-    const string CRLF = "\r\n";
     string result;
 
     result += firstLine_ + CRLF;

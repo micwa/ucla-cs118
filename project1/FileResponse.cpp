@@ -1,4 +1,6 @@
 #include "FileResponse.h"
+#include "HttpRequest.h"
+#include "HttpResponse.h"
 #include "WebUtil.h"
 #include "logerr.h"
 
@@ -21,7 +23,32 @@ FileResponse::~FileResponse()
 
 bool FileResponse::recvRequest(int sockfd)
 {
-    return false;
+    // Receive the first line
+    string firstLine;
+    int res = readline(sockfd, firstLine);
+    if (res == 0 || res == -1)
+        return false;
+
+    // Receive subsequent lines
+    vector<string> lines;
+    res = readlinesUntilEmpty(sockfd, lines);
+    if (res == 0 || res == -1)
+        return false;
+
+    // Create an HttpRequest
+    string version = getVersionFromLine(firstLine);
+    string path = getPathFromRequestLine(firstLine);
+    string host;
+
+    for (string s : lines)      // Look for a "Host:" header
+    {
+        if (tolower(s.substr()
+    }
+    delete request_;
+    request = new HttpRequest(
+
+    // Receive a possible payload
+
 }
 
 bool FileResponse::sendResponse(int sockfd, const string& baseDir)

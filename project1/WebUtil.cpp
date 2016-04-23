@@ -8,18 +8,18 @@ using namespace std;
 
 /* HTTP RELATED */
 
-string ConstructGetRequest(string version, string path)
+string constructGetRequest(string version, string path)
 {
     return "GET " + path + " HTTP/" + version;
 }
 
-string ConstructStatusLine(string version, int status)
+string constructStatusLine(string version, int status)
 {
     return "HTTP/" + version + " " + to_string(status) +
-           " " + HttpStatusDescription(status);
+           " " + httpStatusDescription(status);
 }
 
-string GetVersionFromLine(const string& line)
+string getVersionFromLine(const string& line)
 {
     int i = line.find("HTTP/");
     if (i == string::npos || i + 7 >= line.size())
@@ -28,7 +28,7 @@ string GetVersionFromLine(const string& line)
         return line.substr(i + 5, 3);
 }
 
-int GetStatusCodeFromStatusLine(const string& line)
+int getStatusCodeFromStatusLine(const string& line)
 {
     int firstSpace = line.find(' ');
     int secondSpace = line.find(' ', firstSpace + 1);
@@ -42,7 +42,7 @@ int GetStatusCodeFromStatusLine(const string& line)
     }
 }
 
-string GetPathFromRequestLine(const string& line)
+string getPathFromRequestLine(const string& line)
 {
     int firstSpace = line.find(' ');
     int secondSpace = line.find(' ', firstSpace + 1);
@@ -53,7 +53,7 @@ string GetPathFromRequestLine(const string& line)
         return line.substr(firstSpace + 1, secondSpace - firstSpace - 1);
 }
 
-string HttpStatusDescription(int status)
+string httpStatusDescription(int status)
 {
     switch (status)
     {
@@ -92,7 +92,6 @@ int readline(int sockfd, string& result, const string term)
 
 int readlinesUntilEmpty(int sockfd, vector<string>& lines)
 {
-    const string TERM = "\r\n";
     string line;
     int total = 0;
 
@@ -102,7 +101,7 @@ int readlinesUntilEmpty(int sockfd, vector<string>& lines)
         int res = readline(sockfd, line);
         if (res == 0 || res == -1)           // Propagate EOF and error from readline()
             return res;
-        if (line == TERM)
+        if (line == CRLF)
             break;
 
         lines.push_back(line);

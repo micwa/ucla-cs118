@@ -13,8 +13,8 @@ int main()
     cout << resp.toString() << endl;
     cout << "Versions: " << req.getHttpVersion() << " " << resp.getHttpVersion() << endl;
 
-    cout << GetVersionFromLine("HTTP/1.1 200 OK") << endl;
-    cout << GetStatusCodeFromStatusLine("HTTP/1.1 404 not found") << endl;
-    cout << GetPathFromRequestLine("GET /some_path HTTP/1.1") << endl;
+    cout << getVersionFromLine("HTTP/1.1 200 OK") << endl;
+    cout << getStatusCodeFromStatusLine("HTTP/1.1 404 not found") << endl;
+    cout << getPathFromRequestLine("GET /some_path HTTP/1.1") << endl;
     return 0;
 }
