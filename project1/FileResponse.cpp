@@ -28,27 +28,28 @@ bool FileResponse::recvRequest(int sockfd)
     int res = readline(sockfd, firstLine);
     if (res == 0 || res == -1)
         return false;
+    _DEBUG("Received first line: " + firstLine);
 
     // Receive subsequent lines
     vector<string> lines;
     res = readlinesUntilEmpty(sockfd, lines);
     if (res == 0 || res == -1)
         return false;
+    _DEBUG("Received more lines: " + to_string(lines.size()));
 
-    // Create an HttpRequest
+    // Create an HttpRequest with a dummy host (host will be set duuring makeHttpRequest())
     string version = getVersionFromLine(firstLine);
     string path = getPathFromRequestLine(firstLine);
-    string host;
+    string dummy;
 
-    for (string s : lines)      // Look for a "Host:" header
-    {
-        if (tolower(s.substr()
-    }
     delete request_;
-    request = new HttpRequest(
+    request_ = makeHttpRequest(version, "", path, lines);
+    if (!request_ || !request_->getHeader("host", dummy))
+        return false;
 
-    // Receive a possible payload
+    // Don't bother with payloads, since we assume GET requests only
 
+    return true;
 }
 
 bool FileResponse::sendResponse(int sockfd, const string& baseDir)
@@ -64,7 +65,7 @@ bool FileResponse::sendResponse(int sockfd, const string& baseDir)
     {
         // Parse request for payload path (file path)
         string line = request_->getFirstLine();
-        string filepath = GetPathFromRequestLine(line);
+        string filepath = getPathFromRequestLine(line);
 
         // Read file, and 404 if not found (or I/O error)
         _DEBUG("Request OK, reading from: " + baseDir + filepath);
