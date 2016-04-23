@@ -47,12 +47,21 @@ bool FileResponse::recvRequest(int sockfd)
     // Create an HttpRequest with a dummy host (host will be set duuring makeHttpRequest())
     string version = getVersionFromLine(firstLine);
     string path = getPathFromRequestLine(firstLine);
-    string dummy;
 
     delete request_;
     request_ = makeHttpRequest(version, "", path, lines);
-    if (!request_ || !request_->getHeader("host", dummy))
+
+    // Make sure all headers are NOT malformed and "host" header is present
+    string host;
+    if (!request_)
         return true;
+    if (!request_->getHeader("host", host))
+    {
+        delete request_;
+        request_ = nullptr;
+        return true;
+    }
+    _DEBUG("Succesfully received HTTP request");
 
     // Don't bother with payloads, since we assume GET requests only
 
@@ -72,11 +81,11 @@ bool FileResponse::sendResponse(int sockfd, const string& baseDir)
     {
         // Parse request for payload path (file path)
         string line = request_->getFirstLine();
-        string filepath = getPathFromRequestLine(line);
+        string filepath = baseDir + getPathFromRequestLine(line);
 
         // Read file, and 404 if not found (or I/O error)
-        _DEBUG("Request OK, reading from: " + baseDir + filepath);
-        ifstream ifs(baseDir + filepath);
+        _DEBUG("Request OK, reading from: " + filepath);
+        ifstream ifs(filepath);
         if (ifs.fail())
             status = 404;
         else
@@ -88,6 +97,8 @@ bool FileResponse::sendResponse(int sockfd, const string& baseDir)
                 status = 200;
         }
         ifs.close();
+        if (status == 404)
+            _ERROR("Failed to read file: " + filepath);
     }
     else                // Request was received, but malformed
     {
