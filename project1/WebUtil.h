@@ -26,6 +26,11 @@ std::string getPathFromRequestLine(const std::string& line);
 // Returns the HTTP status description corresponding to the status.
 std::string httpStatusDescription(int status);
 
+// Parses the line into "header: value".
+// Returns true if line is a valid header line, and false if not.
+// Note: there can be no whitespace before the header, but there can be before/after the colon.
+bool splitHeaderLine(const std::string& headerLine, std::string& header, std::string& value);
+
 /* SOCKET RELATED */
 
 // Read a line from sockfd terminated by "term" and store it in result.

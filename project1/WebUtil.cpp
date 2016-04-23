@@ -68,6 +68,55 @@ string httpStatusDescription(int status)
     }
 }
 
+// Returns the first non-whitespace character, starting from start.
+static int skipWhitespace(const string& line, int start)
+{
+    while (start != line.size() && (line[start] == ' ' || line[start] == '\t'))
+        ++start;
+    return start;
+}
+
+// Returns the first non-whitespace character going backwards, starting from start.
+static int skipWhitespaceBackwards(const string& line, int start)
+{
+    while (start >= 0 && (line[start] == ' ' || line[start] == '\t'))
+        --start;
+    return start;
+}
+
+bool splitHeaderLine(const string& headerLine, string& header, string& value)
+{
+    if (headerLine.size() < 3 || headerLine[0] == ' ')
+        return false;
+
+    // Remove CRLF if present
+    string line = headerLine;
+    if (line.substr(line.size() - CRLF.size(), CRLF.size()) == CRLF)
+        line = line.substr(0, line.size() - CRLF.size());
+    
+    int colon = line.find(':');
+    int i;
+    if (colon == string::npos)
+        return false;
+
+    // Skip whitespace and set header
+    i = skipWhitespaceBackwards(line, colon - 1);
+    if (i >= 0)
+        header = line.substr(0, i + 1);
+
+    // Set value and trim whitespace; allow empty values
+    int space = skipWhitespace(line, colon + 1);
+    if (space != line.size())
+        value = line.substr(space);
+    else
+        value = "";
+
+    space = skipWhitespaceBackwards(value, value.size() - 1);
+    value = value.substr(0, space + 1);
+
+    return true;
+}
+
 /* SOCKET RELATED */
 
 int readline(int sockfd, string& result, const string term)
