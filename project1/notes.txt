@@ -23,17 +23,33 @@ Response format:
 Implementation (classes)
 ========================
 
+FileReqest
+    - getResponse()
+    - sendRequest(sockfd)
+        - sendAll() the request
+    - recvResponse(sockfd)
+        - readline() for first line
+        - readlinesUntilEmpty() for the rest
+        - makeHttpResponse() to make HttpResponse
+        - recvAll() for payload
 FileResponse
     - recvRequest(sockfd)
         - readline() for first line
-            - recvWithTimeout()
         - readlinesUntilEmpty() for the rest
-            - readline()
-                - recvWithTimeout()
         - makeHttpRequest() to make HttpRequest
-    - sendRequest(sockfd)
+    - sendResponse(sockfd)
         - ifstream to read file
         - sendAll() to send HttpResponse
+WebUtil (function relationships)
+    - readlinesUntilEmpty()
+        - readline()
+            - recvWithTimeout()
+                - recv()
+    - recvAll()
+        - recvWithTimeout()
+            - recv()
+    - sendAll()
+        - send()
 
 Client
 ======
