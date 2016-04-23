@@ -58,6 +58,11 @@ int readline(int sockfd, std::string& result, const std::string term = CRLF);
 // Note: the empty line is NOT added to lines.
 int readlinesUntilEmpty(int sockfd, std::vector<std::string>& lines);
 
+// Reads nbytes from sockfd and stores it in result.
+// Internally, this uses recvWithTimeout() with a buffer size of RECV_BUF_SIZE.
+// Returns true if nbytes are read successfully, and false if not.
+bool recvAll(int sockfd, std::string& result, int nbytes);
+
 // Reads nbytes from sockfd and stores it in buf, with a timeout (in seconds).
 // Returns the number of bytes recv()'d, or -1 on error/timeout.
 int recvWithTimeout(int sockfd, char *buf, int nbytes, int timeout);
