@@ -37,9 +37,7 @@ bool FileResponse::sendResponse(int sockfd, const string& baseDir)
     {
         // Parse request for payload path (file path)
         string line = request_->getFirstLine();
-        int firstSpace = line.find(' ');
-        int secondSpace = line.find(' ', firstSpace + 1);
-        string filepath = line.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+        string filepath = GetPathFromRequestLine(line);
 
         // Read file, and 404 if not found (or I/O error)
         _DEBUG("Request OK, reading from: " + baseDir + filepath);

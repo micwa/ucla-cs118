@@ -8,6 +8,51 @@ using namespace std;
 
 /* HTTP RELATED */
 
+string ConstructGetRequest(string version, string path)
+{
+    return "GET " + path + " HTTP/" + version;
+}
+
+string ConstructStatusLine(string version, int status)
+{
+    return "HTTP/" + version + " " + to_string(status) +
+           " " + HttpStatusDescription(status);
+}
+
+string GetVersionFromLine(const string& line)
+{
+    int i = line.find("HTTP/");
+    if (i == string::npos || i + 7 >= line.size())
+        return "";
+    else
+        return line.substr(i + 5, 3);
+}
+
+int GetStatusCodeFromStatusLine(const string& line)
+{
+    int firstSpace = line.find(' ');
+    int secondSpace = line.find(' ', firstSpace + 1);
+
+    if (firstSpace == -1 || secondSpace == -1)
+        return -1;
+    else
+    {
+        string status = line.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+        return stoi(status);
+    }
+}
+
+string GetPathFromRequestLine(const string& line)
+{
+    int firstSpace = line.find(' ');
+    int secondSpace = line.find(' ', firstSpace + 1);
+
+    if (firstSpace == -1 || secondSpace == -1)
+        return "";
+    else
+        return line.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+}
+
 string HttpStatusDescription(int status)
 {
     switch (status)
@@ -21,17 +66,6 @@ string HttpStatusDescription(int status)
     default:
         return "";
     }
-}
-
-string ConstructGetRequest(string version, string path)
-{
-    return "GET " + path + " HTTP/" + version;
-}
-
-string ConstructStatusLine(string version, int status)
-{
-    return "HTTP/" + version + " " + to_string(status) +
-           " " + HttpStatusDescription(status);
 }
 
 /* SOCKET RELATED */
