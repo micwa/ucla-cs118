@@ -62,7 +62,7 @@ string HttpMessage::getPayload() const
 void HttpMessage::setPayload(const string payload)
 {
     payload_ = payload;
-    setHeader("Content Length", to_string(payload.size()));
+    setHeader("Content-Length", to_string(payload.size()));
 }
 
 // Returns a string representation of this HttpMessage
