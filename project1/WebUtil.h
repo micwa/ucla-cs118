@@ -64,7 +64,7 @@ int readlinesUntilEmpty(int sockfd, std::vector<std::string>& lines);
 bool recvAll(int sockfd, std::string& result, int nbytes);
 
 // Reads nbytes from sockfd and stores it in buf, with a timeout (in seconds).
-// Returns the number of bytes recv()'d, or -1 on error/timeout.
+// Returns the number of bytes recv()'d, 0 on EOF/timeout, and -1 on error.
 int recvWithTimeout(int sockfd, char *buf, int nbytes, int timeout);
 
 // Send data through the socket sockfd.

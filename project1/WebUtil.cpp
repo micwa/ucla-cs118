@@ -243,7 +243,7 @@ int recvWithTimeout(int sockfd, char *buf, int nbytes, int timeout)
     if (res == 0 || res == -1)
     {
         _ERROR("recv() timed out");
-        return -1;
+        return 0;
     }
 
     // Return recv(), basically; if for some reason sockfd is not set, return error
