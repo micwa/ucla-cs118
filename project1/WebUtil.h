@@ -1,13 +1,14 @@
 #ifndef WEB_UTIL_H_
 #define WEB_UTIL_H_
 
+#include "constants.h"
+
 #include <string>
 #include <vector>
 
 /* HTTP RELATED */
 
 class HttpRequest;
-const std::string CRLF = "\r\n";
 
 // Return the first line of a HTTP GET request.
 std::string constructGetRequest(std::string version, std::string path);
