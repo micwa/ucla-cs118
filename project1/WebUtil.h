@@ -9,6 +9,7 @@
 /* HTTP RELATED */
 
 class HttpRequest;
+class HttpResponse;
 
 // Return the first line of a HTTP GET request.
 std::string constructGetRequest(std::string version, std::string path);
@@ -33,6 +34,12 @@ std::string httpStatusDescription(int status);
 // If any of the header lines are malformed, returns nullptr.
 HttpRequest *makeHttpRequest(std::string httpVersion, std::string host, std::string path,
                              const std::vector<std::string>& headerLines);
+
+// Returns a newly created HttpResponse constructed using the given
+// (httpVersion, status, payload) and headerLines.
+// If any of the header lines are malformed, returns nullptr.
+HttpResponse *makeHttpResponse(std::string httpVersion, int status, std::string payload,
+                               const std::vector<std::string>& headerLines);
 
 // Parses the line into "header: value".
 // Returns true if line is a valid header line, and false if not.

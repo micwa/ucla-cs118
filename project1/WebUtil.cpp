@@ -1,4 +1,5 @@
 #include "HttpRequest.h"
+#include "HttpResponse.h"
 #include "WebUtil.h"
 #include "logerr.h"
 
@@ -70,23 +71,47 @@ string httpStatusDescription(int status)
     }
 }
 
+// Populates the HttpMessage with the given headerLines.
+// Returns false if any of the header lines are malformed, and true otherwise.
+static bool populateHeaders(HttpMessage *msg, const vector<string>& headerLines)
+{
+    for (string line : headerLines)
+    {
+         string header, value;
+         if (splitHeaderLine(line, header, value))
+             msg->setHeader(header, value);
+         else
+            return false;
+    }
+    return true;
+}
+
 HttpRequest *makeHttpRequest(string httpVersion, string host, string path,
                              const vector<string>& headerLines)
 {
     HttpRequest *request = new HttpRequest(httpVersion, host, path);
 
-    for (string line : headerLines)
+    if (populateHeaders(request, headerLines))
+        return request;
+    else
     {
-         string header, value;
-         if (splitHeaderLine(line, header, value))
-             request->setHeader(header, value);
-         else
-         {
-             delete request;
-             return nullptr;
-         }
+        delete request;
+        return nullptr;
     }
-    return request;
+}
+
+HttpResponse *makeHttpResponse(string httpVersion, int status, string payload,
+                               const vector<string>& headerLines)
+{
+    HttpResponse *response = new HttpResponse(httpVersion, status, payload);
+
+    if (populateHeaders(response, headerLines))
+        return response;
+    else
+    {
+        delete response;
+        return nullptr;
+    }
 }
 
 // Returns the first non-whitespace character, starting from start.
