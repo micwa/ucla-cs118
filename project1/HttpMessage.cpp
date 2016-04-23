@@ -1,6 +1,8 @@
 #include "HttpMessage.h"
 #include "WebUtil.h"
 
+#include <algorithm>
+
 using namespace std;
 
 HttpMessage::HttpMessage(const string firstLine)
@@ -28,17 +30,27 @@ string HttpMessage::getFirstLine() const
     return firstLine_;
 }
 
-string HttpMessage::getHeader(const string header) const
+bool HttpMessage::getHeader(const string header, string& value) const
 {
-    if (headers_.count(header) > 0)
-        return headers_.at(header);
+    string h = header;
+    transform(h.begin(), h.end(), h.begin(), ::tolower);
+
+    if (headers_.count(h) > 0)
+    {
+        value = headers_.at(h);
+        return true;
+    }
     else
-        return "";
+    {
+        return false;
+    }
 }
 
 void HttpMessage::setHeader(const string header, const string value)
 {
-    headers_[header] = value;
+    string h = header;
+    transform(h.begin(), h.end(), h.begin(), ::tolower);
+    headers_[h] = value;
 }
 
 string HttpMessage::getPayload() const
