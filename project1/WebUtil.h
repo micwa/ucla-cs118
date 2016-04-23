@@ -41,7 +41,7 @@ bool splitHeaderLine(const std::string& headerLine, std::string& header, std::st
 
 /* SOCKET RELATED */
 
-// Read a line from sockfd terminated by "term" and store it in result.
+// Read a line from sockfd terminated by "term", and store it in result.
 // Returns 0 if the socket returns EOF, -1 if there is an error, and result.size() otherwise.
 int readline(int sockfd, std::string& result, const std::string term = CRLF);
 
@@ -50,6 +50,10 @@ int readline(int sockfd, std::string& result, const std::string term = CRLF);
 // read otherwise (excluding the last empty line).
 // Note: the empty line is NOT added to lines.
 int readlinesUntilEmpty(int sockfd, std::vector<std::string>& lines);
+
+// Reads nbytes from sockfd and stores it in buf, with a timeout (in seconds).
+// Returns the number of bytes recv()'d, or -1 on error/timeout.
+int recvWithTimeout(int sockfd, char *buf, int nbytes, int timeout);
 
 // Send data through the socket sockfd.
 // Returns true if the data was sent successfully, and false if there was an error.

@@ -2,6 +2,7 @@
 #include "WebUtil.h"
 #include "logerr.h"
 
+#include <sys/select.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -148,10 +149,10 @@ int readline(int sockfd, string& result, const string term)
     while (result.size() < n || result.substr(result.size() - n, n) != term)
     {
         // Recv() one byte at a time
-        int received = recv(sockfd, &buf, 1, 0);
-        if (received == 0)
+        int res = recvWithTimeout(sockfd, &buf, 1, RECV_TIMEOUT_SECS);
+        if (res == 0)
             return 0;
-        else if (received == -1)
+        else if (res == -1)
             return -1;
         result += buf;
     }
@@ -178,6 +179,28 @@ int readlinesUntilEmpty(int sockfd, vector<string>& lines)
     }
     _DEBUG("Total lines read: " + to_string(lines.size()));
     return total;
+}
+
+int recvWithTimeout(int sockfd, char *buf, int nbytes, int timeout)
+{
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(sockfd, &readfds);
+
+    struct timeval tv;
+    tv.tv_sec = timeout;
+    tv.tv_usec = 0;
+
+    // Wait for recv() or timeout
+    int res = select(sockfd + 1, &readfds, NULL, NULL, &tv);
+    if (res == 0 || res == -1)
+        return -1;
+
+    // Return recv(), basically; if for some reason sockfd is not set, return error
+    if (FD_ISSET(sockfd, &readfds))
+        return recv(sockfd, buf, nbytes, 0);
+    else
+        return -1;
 }
 
 bool sendAll(int sockfd, const string& data)
