@@ -86,8 +86,30 @@ int readline(int sockfd, string& result, const string term)
             return -1;
         result += buf;
     }
-    _DEBUG("Result: " + result);
+    _DEBUG("Read line: " + result);
     return result.size();
+}
+
+int readlinesUntilEmpty(int sockfd, vector<string>& lines)
+{
+    const string TERM = "\r\n";
+    string line;
+    int total = 0;
+
+    lines.clear();
+    while (true)
+    {
+        int res = readline(sockfd, line);
+        if (res == 0 || res == -1)           // Propagate EOF and error from readline()
+            return res;
+        if (line == TERM)
+            break;
+
+        lines.push_back(line);
+        total += res;
+    }
+    _DEBUG("Total lines read: " + to_string(lines.size()));
+    return total;
 }
 
 bool sendAll(int sockfd, const string& data)
