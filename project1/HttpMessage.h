@@ -19,7 +19,7 @@ public:
     std::string getHttpVersion() const;
     std::string getFirstLine() const;
 
-    std::string getHeader(const std::string header) const;
+    bool getHeader(const std::string header, std::string& value) const;
     void setHeader(const std::string header, const std::string value);
     std::string getPayload() const;
     void setPayload(const std::string payload);

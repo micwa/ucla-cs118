@@ -14,7 +14,7 @@ public:
 
 inline
 HttpRequest::HttpRequest(std::string version, std::string host, std::string path)
-    : HttpMessage(ConstructGetRequest(version, path))
+    : HttpMessage(constructGetRequest(version, path))
 {
     setHeader("Host", host);
 }

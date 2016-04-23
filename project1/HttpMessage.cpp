@@ -1,4 +1,8 @@
+#include "constants.h"
 #include "HttpMessage.h"
+#include "WebUtil.h"
+
+#include <algorithm>
 
 using namespace std;
 
@@ -13,11 +17,7 @@ HttpMessage::HttpMessage(const string firstLine)
 void HttpMessage::setFirstLine(const string firstLine)
 {
     firstLine_ = firstLine;
-    int i = firstLine_.find("HTTP/");
-    if (i == string::npos || i + 7 >= firstLine_.size())
-        httpVersion_ = "";
-    else
-        httpVersion_ = firstLine_.substr(i + 5, 3);
+    httpVersion_ = getVersionFromLine(firstLine);
 }
 
 // Return the HTTP version (or "" if the first line was set incorrectly).
@@ -31,17 +31,27 @@ string HttpMessage::getFirstLine() const
     return firstLine_;
 }
 
-string HttpMessage::getHeader(const string header) const
+bool HttpMessage::getHeader(const string header, string& value) const
 {
-    if (headers_.count(header) > 0)
-        return headers_.at(header);
+    string h = header;
+    transform(h.begin(), h.end(), h.begin(), ::tolower);
+
+    if (headers_.count(h) > 0)
+    {
+        value = headers_.at(h);
+        return true;
+    }
     else
-        return "";
+    {
+        return false;
+    }
 }
 
 void HttpMessage::setHeader(const string header, const string value)
 {
-    headers_[header] = value;
+    string h = header;
+    transform(h.begin(), h.end(), h.begin(), ::tolower);
+    headers_[h] = value;
 }
 
 string HttpMessage::getPayload() const
@@ -52,13 +62,12 @@ string HttpMessage::getPayload() const
 void HttpMessage::setPayload(const string payload)
 {
     payload_ = payload;
-    setHeader("Content Length", to_string(payload.size()));
+    setHeader("Content-Length", to_string(payload.size()));
 }
 
 // Returns a string representation of this HttpMessage
 string HttpMessage::toString()
 {
-    const string CRLF = "\r\n";
     string result;
 
     result += firstLine_ + CRLF;

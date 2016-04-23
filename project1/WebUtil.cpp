@@ -1,3 +1,4 @@
+#include "HttpRequest.h"
 #include "WebUtil.h"
 #include "logerr.h"
 
@@ -8,7 +9,52 @@ using namespace std;
 
 /* HTTP RELATED */
 
-string HttpStatusDescription(int status)
+string constructGetRequest(string version, string path)
+{
+    return "GET " + path + " HTTP/" + version;
+}
+
+string constructStatusLine(string version, int status)
+{
+    return "HTTP/" + version + " " + to_string(status) +
+           " " + httpStatusDescription(status);
+}
+
+string getVersionFromLine(const string& line)
+{
+    int i = line.find("HTTP/");
+    if (i == string::npos || i + 7 >= line.size())
+        return "";
+    else
+        return line.substr(i + 5, 3);
+}
+
+int getStatusCodeFromStatusLine(const string& line)
+{
+    int firstSpace = line.find(' ');
+    int secondSpace = line.find(' ', firstSpace + 1);
+
+    if (firstSpace == -1 || secondSpace == -1)
+        return -1;
+    else
+    {
+        string status = line.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+        return stoi(status);
+    }
+}
+
+string getPathFromRequestLine(const string& line)
+{
+    int firstSpace = line.find(' ');
+    int secondSpace = line.find(' ', firstSpace + 1);
+
+    if (firstSpace == -1 || secondSpace == -1)
+        return "";
+    else
+        return line.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+}
+
+string httpStatusDescription(int status)
 {
     switch (status)
     {
@@ -23,15 +69,72 @@ string HttpStatusDescription(int status)
     }
 }
 
-string ConstructGetRequest(string version, string path)
+HttpRequest *makeHttpRequest(string httpVersion, string host, string path,
+                             const vector<string>& headerLines)
 {
-    return "GET " + path + " HTTP/" + version;
+    HttpRequest *request = new HttpRequest(httpVersion, host, path);
+
+    for (string line : headerLines)
+    {
+         string header, value;
+         if (splitHeaderLine(line, header, value))
+             request->setHeader(header, value);
+         else
+         {
+             delete request;
+             return nullptr;
+         }
+    }
+    return request;
 }
 
-string ConstructStatusLine(string version, int status)
+// Returns the first non-whitespace character, starting from start.
+static int skipWhitespace(const string& line, int start)
 {
-    return "HTTP/" + version + " " + to_string(status) +
-           " " + HttpStatusDescription(status);
+    while (start != line.size() && (line[start] == ' ' || line[start] == '\t'))
+        ++start;
+    return start;
+}
+
+// Returns the first non-whitespace character going backwards, starting from start.
+static int skipWhitespaceBackwards(const string& line, int start)
+{
+    while (start >= 0 && (line[start] == ' ' || line[start] == '\t'))
+        --start;
+    return start;
+}
+
+bool splitHeaderLine(const string& headerLine, string& header, string& value)
+{
+    if (headerLine.size() < 3 || headerLine[0] == ' ')
+        return false;
+
+    // Remove CRLF if present
+    string line = headerLine;
+    if (line.substr(line.size() - CRLF.size(), CRLF.size()) == CRLF)
+        line = line.substr(0, line.size() - CRLF.size());
+    
+    int colon = line.find(':');
+    int i;
+    if (colon == string::npos)
+        return false;
+
+    // Skip whitespace and set header
+    i = skipWhitespaceBackwards(line, colon - 1);
+    if (i >= 0)
+        header = line.substr(0, i + 1);
+
+    // Set value and trim whitespace; allow empty values
+    int space = skipWhitespace(line, colon + 1);
+    if (space != line.size())
+        value = line.substr(space);
+    else
+        value = "";
+
+    space = skipWhitespaceBackwards(value, value.size() - 1);
+    value = value.substr(0, space + 1);
+
+    return true;
 }
 
 /* SOCKET RELATED */
@@ -52,8 +155,29 @@ int readline(int sockfd, string& result, const string term)
             return -1;
         result += buf;
     }
-    _DEBUG("Result: " + result);
+    _DEBUG("Read line: " + result);
     return result.size();
+}
+
+int readlinesUntilEmpty(int sockfd, vector<string>& lines)
+{
+    string line;
+    int total = 0;
+
+    lines.clear();
+    while (true)
+    {
+        int res = readline(sockfd, line);
+        if (res == 0 || res == -1)           // Propagate EOF and error from readline()
+            return res;
+        if (line == CRLF)
+            break;
+
+        lines.push_back(line);
+        total += res;
+    }
+    _DEBUG("Total lines read: " + to_string(lines.size()));
+    return total;
 }
 
 bool sendAll(int sockfd, const string& data)

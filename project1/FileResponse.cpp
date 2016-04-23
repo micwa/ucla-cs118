@@ -1,4 +1,6 @@
 #include "FileResponse.h"
+#include "HttpRequest.h"
+#include "HttpResponse.h"
 #include "WebUtil.h"
 #include "logerr.h"
 
@@ -8,7 +10,7 @@
 using namespace std;
 
 FileResponse::FileResponse()
-    : requestOk_(false),
+    : httpVersion_(""),
       request_(nullptr),
       response_(nullptr)
 {}
@@ -21,25 +23,56 @@ FileResponse::~FileResponse()
 
 bool FileResponse::recvRequest(int sockfd)
 {
-    return false;
+    // Receive the first line
+    string firstLine;
+    int res = readline(sockfd, firstLine);
+    if (res <= 0 && firstLine.size() == 0)
+        return false;
+    
+    // Set httpVersion_ if >0 bytes read (even if there is an error/connection closed)
+    httpVersion_ = getVersionFromLine(firstLine);   
+    if (httpVersion_ == "")
+        httpVersion_ = HTTP_DEFAULT_VERSION;
+    if (res <= 0)
+        return true;
+    _DEBUG("Received first line: " + firstLine);
+
+    // Receive subsequent lines
+    vector<string> lines;
+    res = readlinesUntilEmpty(sockfd, lines);
+    if (res == 0 || res == -1)
+        return true;
+    _DEBUG("Received more lines: " + to_string(lines.size()));
+
+    // Create an HttpRequest with a dummy host (host will be set duuring makeHttpRequest())
+    string version = getVersionFromLine(firstLine);
+    string path = getPathFromRequestLine(firstLine);
+    string dummy;
+
+    delete request_;
+    request_ = makeHttpRequest(version, "", path, lines);
+    if (!request_ || !request_->getHeader("host", dummy))
+        return true;
+
+    // Don't bother with payloads, since we assume GET requests only
+
+    return true;
 }
 
 bool FileResponse::sendResponse(int sockfd, const string& baseDir)
 {
-    if (!request_)
+    if (httpVersion_ == "")
         return false;
 
-    string httpVersion = request_->getHttpVersion();
+    string httpVersion = httpVersion_;
     int status;
     string payload;
 
-    if (requestOk_)     // Request was received and in the correct format
+    if (request_)     // Request was received and in the correct format
     {
         // Parse request for payload path (file path)
         string line = request_->getFirstLine();
-        int firstSpace = line.find(' ');
-        int secondSpace = line.find(' ', firstSpace + 1);
-        string filepath = line.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+        string filepath = getPathFromRequestLine(line);
 
         // Read file, and 404 if not found (or I/O error)
         _DEBUG("Request OK, reading from: " + baseDir + filepath);
