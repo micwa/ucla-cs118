@@ -21,27 +21,27 @@ FileResponse::~FileResponse()
     delete response_;
 }
 
-bool FileResponse::recvRequest(int sockfd)
+int FileResponse::recvRequest(int sockfd)
 {
     // Receive the first line
     string firstLine;
     int res = readline(sockfd, firstLine);
-    if (res <= 0 && firstLine.size() == 0)
-        return false;
+    if (res == 0)
+        return 0;
     
-    // Set httpVersion_ if >0 bytes read (even if there is an error/connection closed)
+    // As long as first line was read, set httpVersion_
     httpVersion_ = getVersionFromLine(firstLine);   
     if (httpVersion_ == "")
         httpVersion_ = HTTP_DEFAULT_VERSION;
-    if (res <= 0)
-        return true;
+    if (res == -1)
+        return -1;
     _DEBUG("Received first line: " + firstLine);
 
     // Receive subsequent lines
     vector<string> lines;
     res = readlinesUntilEmpty(sockfd, lines);
     if (res == 0 || res == -1)
-        return true;
+        return res;
     _DEBUG("Received more lines: " + to_string(lines.size()));
 
     // Create an HttpRequest with a dummy host (host will be set duuring makeHttpRequest())
@@ -54,18 +54,18 @@ bool FileResponse::recvRequest(int sockfd)
     // Make sure all headers are NOT malformed and "host" header is present
     string host;
     if (!request_)
-        return true;
+        return -1;
     if (!request_->getHeader("host", host))
     {
         delete request_;
         request_ = nullptr;
-        return true;
+        return -1;
     }
     _DEBUG("Succesfully received HTTP request");
 
     // Don't bother with payloads, since we assume GET requests only
 
-    return true;
+    return 1;
 }
 
 bool FileResponse::sendResponse(int sockfd, const string& baseDir)

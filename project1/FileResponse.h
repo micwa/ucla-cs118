@@ -17,8 +17,9 @@ public:
     ~FileResponse();
 
     // Receive an HTTP request through sockfd.
-    // Returns true if any bytes are received, and false if not.
-    bool recvRequest(int sockfd);
+    // Returns 0 if timeout/EOF encountered before receiving the whole request,
+    // -1 on error (recv() error or malformed request), and 1 otherwise.
+    int recvRequest(int sockfd);
 
     // Construct and send a response based on the request that was received.
     // If no request was received (i.e., recvRequest() had not been called or
