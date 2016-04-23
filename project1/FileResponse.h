@@ -9,7 +9,7 @@
 class FileResponse
 {
 private:
-    bool requestOk_;        // True if request_ exists and is not malformed
+    std::string httpVersion_;
     HttpRequest *request_;
     HttpResponse *response_;
 public:
@@ -22,7 +22,8 @@ public:
 
     // Construct and send a response based on the request that was received.
     // If no request was received (i.e., recvRequest() had not been called or
-    // returned false), returns false.
+    // returned false), returns false. If any bytes had been received, this
+    // will either send a 200/404, or a 400 response.
     // Returns true if the response was sent successfully, and false if not.
     bool sendResponse(int sockfd, const std::string& baseDir);
 };

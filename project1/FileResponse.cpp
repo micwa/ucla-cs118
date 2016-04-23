@@ -10,7 +10,7 @@
 using namespace std;
 
 FileResponse::FileResponse()
-    : requestOk_(false),
+    : httpVersion_(""),
       request_(nullptr),
       response_(nullptr)
 {}
@@ -26,15 +26,22 @@ bool FileResponse::recvRequest(int sockfd)
     // Receive the first line
     string firstLine;
     int res = readline(sockfd, firstLine);
-    if (res == 0 || res == -1)
+    if (res <= 0 && firstLine.size() == 0)
         return false;
+    
+    // Set httpVersion_ if >0 bytes read (even if there is an error/connection closed)
+    httpVersion_ = getVersionFromLine(firstLine);   
+    if (httpVersion_ == "")
+        httpVersion_ = HTTP_DEFAULT_VERSION;
+    if (res <= 0)
+        return true;
     _DEBUG("Received first line: " + firstLine);
 
     // Receive subsequent lines
     vector<string> lines;
     res = readlinesUntilEmpty(sockfd, lines);
     if (res == 0 || res == -1)
-        return false;
+        return true;
     _DEBUG("Received more lines: " + to_string(lines.size()));
 
     // Create an HttpRequest with a dummy host (host will be set duuring makeHttpRequest())
@@ -45,7 +52,7 @@ bool FileResponse::recvRequest(int sockfd)
     delete request_;
     request_ = makeHttpRequest(version, "", path, lines);
     if (!request_ || !request_->getHeader("host", dummy))
-        return false;
+        return true;
 
     // Don't bother with payloads, since we assume GET requests only
 
@@ -54,14 +61,14 @@ bool FileResponse::recvRequest(int sockfd)
 
 bool FileResponse::sendResponse(int sockfd, const string& baseDir)
 {
-    if (!request_)
+    if (httpVersion_ == "")
         return false;
 
-    string httpVersion = request_->getHttpVersion();
+    string httpVersion = httpVersion_;
     int status;
     string payload;
 
-    if (requestOk_)     // Request was received and in the correct format
+    if (request_)     // Request was received and in the correct format
     {
         // Parse request for payload path (file path)
         string line = request_->getFirstLine();
