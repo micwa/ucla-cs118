@@ -21,6 +21,11 @@ FileResponse::~FileResponse()
     delete response_;
 }
 
+HttpRequest *FileResponse::getRequest() const
+{
+    return request_;
+}
+
 int FileResponse::recvRequest(int sockfd)
 {
     // Receive the first line

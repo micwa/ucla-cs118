@@ -16,6 +16,8 @@ public:
     FileResponse();
     ~FileResponse();
 
+    HttpRequest *getRequest() const;
+
     // Receive an HTTP request through sockfd.
     // Returns 0 if timeout/EOF encountered before receiving the whole request,
     // -1 on error (recv() error or malformed request), and 1 otherwise.
