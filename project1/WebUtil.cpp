@@ -114,6 +114,62 @@ HttpResponse *makeHttpResponse(string httpVersion, int status, string payload,
     }
 }
 
+bool parseUrl(const string& url, string& host, int& port, string& path)
+{
+    const string PROTOCOL_SEPARATOR = "://";
+    const string ROOT = "/";
+    const string PORT_SEPARATOR = ":";
+    string s = url;
+
+    // If PROTOCOL_SEPARATOR exists, remove it
+    int i = s.find(PROTOCOL_SEPARATOR);
+    if (i != string::npos)
+        s = s.substr(i + PROTOCOL_SEPARATOR.size());
+    if (s.size() == 0)  // Host can not be empty
+        return false;
+
+    // Everything after (and including) ROOT is part of path; if no path, path = ROOT
+    i = s.find(ROOT);
+    if (i != string::npos)
+    {
+        path = s.substr(i);
+        s = s.substr(0, i);
+        if (s.size() == 0)
+            return false;
+    }
+    else
+        path = ROOT;
+
+    // Parse port, with try/catch
+    i = s.find(PORT_SEPARATOR);
+    if (i != string::npos)
+    {
+        if (s.find(PORT_SEPARATOR, i + 1) != string::npos)     // Only one colon allowed
+            return false;
+        string portString = s.substr(i + 1);
+        s = s.substr(0, i);
+
+        if (s.size() == 0)
+            return false;
+        if (portString.size() == 0)
+            port = HTTP_DEFAULT_PORT;
+        else
+        {
+            try {
+                port = stoi(portString);
+            }
+            catch (...) {
+                return false;
+            }
+        }
+    }
+    else
+        port = HTTP_DEFAULT_PORT;
+
+    host = s;
+    return true;
+}
+
 // Returns the first non-whitespace character, starting from start.
 static int skipWhitespace(const string& line, int start)
 {

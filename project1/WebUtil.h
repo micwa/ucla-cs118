@@ -41,6 +41,11 @@ HttpRequest *makeHttpRequest(std::string httpVersion, std::string host, std::str
 HttpResponse *makeHttpResponse(std::string httpVersion, int status, std::string payload,
                                const std::vector<std::string>& headerLines);
 
+// Parses the given url into a (url, port, path) combination, with default port = 80.
+// E.g., for "http://www.foo.com:8080/bar.html", (url, port, path) = ("www.foo.com", 8080, "/bar.html")
+// Returns true if "url" is a valid url, and false otherwise.
+bool parseUrl(const std::string& url, std::string& host, int& port, std::string& path);
+
 // Parses the line into "header: value".
 // Returns true if line is a valid header line, and false if not.
 // Note: there can be no whitespace before the header, but there can be before/after the colon.
