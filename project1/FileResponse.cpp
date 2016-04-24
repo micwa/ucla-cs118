@@ -40,14 +40,13 @@ int FileResponse::recvRequest(int sockfd)
         httpVersion_ = HTTP_DEFAULT_VERSION;
     if (res == -1)
         return -1;
-    _DEBUG("Received first line: " + firstLine);
+    _DEBUG("Received first line: " + firstLine.substr(0, firstLine.size() - CRLF.size()));
 
     // Receive subsequent lines
     vector<string> lines;
     res = readlinesUntilEmpty(sockfd, lines);
     if (res == 0 || res == -1)
         return res;
-    _DEBUG("Received more lines: " + to_string(lines.size()));
 
     // Create an HttpRequest with a dummy host (host will be set duuring makeHttpRequest())
     string path = getPathFromRequestLine(firstLine);

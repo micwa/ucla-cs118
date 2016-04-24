@@ -41,14 +41,13 @@ bool FileRequest::recvResponse(int sockfd)
     int status = getStatusCodeFromStatusLine(firstLine);
     if (httpVersion == "" || status == -1)
         return false;
-    _DEBUG("Received first line: " + firstLine);
+    _DEBUG("Received first line: " + firstLine.substr(0, firstLine.size() - CRLF.size()));
 
     // Receive subsequent lines
     vector<string> lines;
     res = readlinesUntilEmpty(sockfd, lines);
     if (res == 0 || res == -1)
         return false;
-    _DEBUG("Received more lines: " + to_string(lines.size()));
 
     // Create HttpResponse from lines read
     delete response_;

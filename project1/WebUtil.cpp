@@ -249,7 +249,7 @@ int readline(int sockfd, string& result, const string term)
             return res;
         result += buf;
     }
-    _DEBUG("Read line: " + result);
+    _DEBUG("Read line: " + result.substr(0, result.size() - term.size()));
     return result.size();
 }
 
