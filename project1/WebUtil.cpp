@@ -26,11 +26,19 @@ string constructStatusLine(string version, int status)
 
 string getVersionFromLine(const string& line)
 {
-    int i = line.find("HTTP/");
+    const string VERSION_START = "HTTP/";
+
+    int i = line.find(VERSION_START);
     if (i == string::npos || i + 7 >= line.size())
         return "";
     else
-        return line.substr(i + 5, 3);
+    {
+        // Version must be 1.0 or 1.1
+        string version = line.substr(i + VERSION_START.size(), 3);
+        if (version == HTTP_VERSION_11 || version == HTTP_VERSION_10)
+            return version;
+        return "";
+    }
 }
 
 int getStatusCodeFromStatusLine(const string& line)
@@ -43,7 +51,14 @@ int getStatusCodeFromStatusLine(const string& line)
     else
     {
         string status = line.substr(firstSpace + 1, secondSpace - firstSpace - 1);
-        return stoi(status);
+        int i;
+        try {
+            i = stoi(status);
+        }
+        catch (...) {
+            i = -1;
+        }
+        return i;
     }
 }
 
