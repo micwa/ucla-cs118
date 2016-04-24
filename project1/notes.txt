@@ -33,6 +33,7 @@ FileReqest
         - makeHttpResponse() to make HttpResponse
         - recvAll() for payload
 FileResponse
+    - getRequest()
     - recvRequest(sockfd)
         - readline() for first line
         - readlinesUntilEmpty() for the rest
@@ -40,7 +41,7 @@ FileResponse
     - sendResponse(sockfd)
         - ifstream to read file
         - sendAll() to send HttpResponse
-WebUtil (function relationships)
+WebUtil (socket-related, call stacks)
     - readlinesUntilEmpty()
         - readline()
             - recvWithTimeout()
@@ -55,8 +56,8 @@ Client
 ======
 
 Steps:
-    - parse URL(s) into a map(HOST => [FILES])
-    - while there are still files to retrieve (i.e., for each HOST):
+    - parse URL(s) into a map((HOST, PORT) => [FILES])
+    - while there are still files to retrieve (i.e., for each (HOST, PORT)):
         - getaddrinfo() for IP
         - socket() to create socket
         - connect() to connect to server
@@ -67,13 +68,14 @@ Steps:
             - recv(), with timeout, the response
             - if not 404, save the file
         [persistent]
-        - attempt to retrieve multiple files (from same HOST):
-            - retrieve first file (as above)
+        - attempt to retrieve multiple files (from same HOST),
+          checking each request for "Connection: close"/HTTP/1.1 support
+          (after response, go to "close() the connection" if not persistent):
+            - retrieve first file (as in non-persistent)
             [non-pipelined]
-            - if supports HTTP/1.1, retrieve more files;
-              else, do nothing (continue)
+            - retrieve files one by one
             [pipelined]
-            - if supports HTTP/1.1, send requests for all files;
+            - send requests for all files;
               discount all files that failed to send()
             - recv() and save, with timeout, all responses
         - close() the connection
@@ -104,7 +106,9 @@ Steps:
             - recv() the request
             - create HttpResponse
             - send() the response
-            - update openConns[tmp_sock] to getCurrentTime()
+            - if request had "Connection: close", close() the connection
+              (e.g., set openConns[sock_ready] = -1);
+            - else, update openConns[sock_ready] to getCurrentTime()
             [non-persistent - it's more complicated than persistent, so not going to bother]
         - close() all connections in openConns that are "timed out"
     where
@@ -120,6 +124,7 @@ Steps:
               if timeout or EOF, close() the connection and break
             - create HttpResponse
             - send() the response
+            - if request had "Connection: close", close() the connection and break
 
 Pitfalls
 ========
