@@ -242,18 +242,12 @@ int recvWithTimeout(int sockfd, char *buf, int nbytes, int timeout)
     int res = select(sockfd + 1, &readset, NULL, NULL, &tv);
     if (res == 0 || res == -1)
     {
-        _ERROR("recv() timed out");
+        _ERROR("recv() timeout/error: " + to_string(res));
         return 0;
     }
 
-    // Return recv(), basically; if for some reason sockfd is not set, return error
-    if (FD_ISSET(sockfd, &readset))
-        return recv(sockfd, buf, nbytes, 0);
-    else
-    {
-        _ERROR("select() erroneously unblocked");
-        return -1;
-    }
+    // Return recv()
+    return recv(sockfd, buf, nbytes, 0);
 }
 
 bool sendAll(int sockfd, const string& data)

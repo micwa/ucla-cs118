@@ -45,11 +45,9 @@ int FileResponse::recvRequest(int sockfd)
     _DEBUG("Received more lines: " + to_string(lines.size()));
 
     // Create an HttpRequest with a dummy host (host will be set duuring makeHttpRequest())
-    string version = getVersionFromLine(firstLine);
     string path = getPathFromRequestLine(firstLine);
-
     delete request_;
-    request_ = makeHttpRequest(version, "", path, lines);
+    request_ = makeHttpRequest(httpVersion_, "", path, lines);
 
     // Make sure all headers are NOT malformed and "host" header is present
     string host;
@@ -61,7 +59,7 @@ int FileResponse::recvRequest(int sockfd)
         request_ = nullptr;
         return -1;
     }
-    _DEBUG("Succesfully received HTTP request");
+    _DEBUG("Successfully received HTTP request");
 
     // Don't bother with payloads, since we assume GET requests only
 
