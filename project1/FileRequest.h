@@ -9,7 +9,6 @@ class HttpResponse;
 class FileRequest
 {
 private:
-    std::string filename_;
     HttpRequest *request_;
     HttpResponse *response_;
 public:
@@ -22,8 +21,7 @@ public:
     // Returns true if the request was sent successfully, and false if not.
     bool sendRequest(int sockfd);
 
-    // Receives the HTTP response for the file associated with this FileRequest,
-    // and saves the file with a filename extracted from the path.
+    // Receives the HTTP response for the file associated with this FileRequest.
     // Returns true if the file was retrieved successfully, and false if not.
     bool recvResponse(int sockfd);
 };

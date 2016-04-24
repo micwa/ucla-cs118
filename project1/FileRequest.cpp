@@ -11,12 +11,6 @@ FileRequest::FileRequest(string httpVersion, string host, string path)
       response_(nullptr)
 {
     request_ = new HttpRequest(httpVersion, host, path);
-
-    // Extract filename from path
-    int i = path.size() - 1;
-    while (i >= 0 && path[i] != '/')
-        --i;
-    filename_ = path.substr(i + 1);
 }
 
 FileRequest::~FileRequest()
