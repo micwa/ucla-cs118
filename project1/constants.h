@@ -4,7 +4,9 @@
 #include <string>
 
 const std::string CRLF = "\r\n";
-const std::string HTTP_DEFAULT_VERSION = "1.1";
+const std::string HTTP_VERSION_10 = "1.0";
+const std::string HTTP_VERSION_11 = "1.1";
+const std::string HTTP_DEFAULT_VERSION = HTTP_VERSION_11;
 const int HTTP_DEFAULT_PORT = 80;
 
 const int RECV_TIMEOUT_SECS = 10;
