@@ -3,11 +3,13 @@ CC = g++
 
 SOURCES = \
   HttpMessage.cpp \
+  FileRequest.cpp \
+  FileResponse.cpp \
   WebUtil.cpp
 OBJS = $(subst .cpp,.o,$(SOURCES))
 
 CFLAGS = -g -Wall -Wpedantic -Wextra -Wshadow -Wno-sign-compare \
-		 	-pthread -std=c++11 -O2
+		 	-pthread -std=c++11
 TARGET = web-client web-server test
 USERID=204458659
 .PHONY : all clean
