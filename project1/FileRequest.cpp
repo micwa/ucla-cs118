@@ -29,6 +29,10 @@ bool FileRequest::sendRequest(int sockfd)
     return sendAll(sockfd, request_->toString());
 }
 
+// To be well-formed, the response must have:
+//  - HTTP version and status
+//  - well-formed header lines
+//  - if status == 200, must have content-length
 bool FileRequest::recvResponse(int sockfd)
 {
     // Receive the first line
@@ -45,23 +49,27 @@ bool FileRequest::recvResponse(int sockfd)
     // Receive subsequent lines
     vector<string> lines;
     res = readlinesUntilEmpty(sockfd, lines);
-    if (res == 0 || res == -1)
+    if ((res == 0 && status == 200) || res == -1)
         return false;
 
     // Create HttpResponse from lines read
     delete response_;
     response_ = makeHttpResponse(httpVersion, status, "", lines);
+    if (!response_)
+        return false;
 
-    // Receive payload
+    // Receive payload only if "content-length" header present
     string size;
     string payload;
-    if (!response_ || !response_->getHeader("content-length", size))
-        return false;
-    if (!recvAll(sockfd, payload, stoi(size)))
+    if (response_->getHeader("content-length", size))
+    {
+        if (!recvAll(sockfd, payload, stoi(size)))
+            return false;
+        response_->setPayload(payload);
+    }
+    else if (status == 200)
         return false;
 
-    // Set payload; make the user save the file
-    response_->setPayload(payload);
-
+    _DEBUG("HttpResponse received successfully");
     return true;
 }

@@ -22,7 +22,9 @@ public:
     bool sendRequest(int sockfd);
 
     // Receives the HTTP response for the file associated with this FileRequest.
-    // Returns true if the file was retrieved successfully, and false if not.
+    // Returns true if the response was retrieved successfully and valid, and false if not.
+    // Note: the response may be 400/404 and still return true;
+    // if response is 200, requires a payload to be valid (optional for others).
     bool recvResponse(int sockfd);
 };
 
