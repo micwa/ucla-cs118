@@ -36,9 +36,15 @@ static void errorAndExit(const string& msg)
     exit(EXIT_FAILURE);
 }
 
-static void saveResponse(const string& path, HttpResponse *response)
+// Save the payload (if any) from the given HttpResponse to a filename
+// extracted from the given path.
+static void trySaveResponse(const string& path, HttpResponse *response)
 {
+    const string DEFAULT_INDEX_HTML = "index.html";
     string contents = response->getPayload();
+
+    if (contents.empty())
+        return;
 
     // Extract filename from path
     int i = path.size() - 1;
@@ -46,7 +52,7 @@ static void saveResponse(const string& path, HttpResponse *response)
         --i;
     string filename = path.substr(i + 1);
     if (filename.empty())
-        filename = "index.html";
+        filename = DEFAULT_INDEX_HTML;
 
     // Save file
     ofstream ofs(filename);
@@ -60,7 +66,7 @@ static void saveResponse(const string& path, HttpResponse *response)
 
 int main(int argc, char *argv[])
 {
-    // Parse arguments into (host, port) => file
+    // Parse arguments into (host, port) => [file]
     unordered_map<pair<string, int>, vector<string>> files;
 
     for (int i = 1; i < argc; ++i)
@@ -109,7 +115,7 @@ int main(int argc, char *argv[])
             break;
         }
         if (ip == NULL)
-            errorAndExit("No addrinfo for host: " + host);
+            errorAndExit("No connection possible for host: " + host);
 
         // Retrieve first file
         string path = paths.back();
@@ -123,13 +129,13 @@ int main(int argc, char *argv[])
             if (status)
             {
                 response = request.getResponse();
-                saveResponse(path, response);
+                trySaveResponse(path, response);
             }
             else
-                _ERROR("Error receiving response");
+                _ERROR("Response was malformed/incomplete");
         }
         else
-            _ERROR("Error sending request");
+            _ERROR("Request not sent");
 
         // Remove file from vector; if vector empty, remove key from hashmap
         paths.pop_back();
