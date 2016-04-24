@@ -146,25 +146,29 @@ int main(int argc, char *argv[])
             paths.pop_back();
             if (paths.empty())
                 files.erase(it);
-
-            // Set persistence; if the response was not received properly, counts as not persistent
-            string value;
-            if (status)
+            else
             {
-               if ((response->getHeader("Connection", value) && value == "close") ||
-                   response->getHttpVersion() != HTTP_VERSION_11)
-                   isPersistent = false;
-               else
-                   isPersistent = true;
+                // If HTTP/1.1 (and not "Connection: close") is supported and there are files
+                // left to retrieve, set isPersistent = true.
+                // Note: if the response was not received properly, counts as not persistent.
+                string value;
+                if (status)
+                {
+                   if ((response->getHeader("Connection", value) && value == "close") ||
+                       response->getHttpVersion() != HTTP_VERSION_11)
+                       isPersistent = false;
+                   else
+                       isPersistent = true;
+                }
             }
         }
 
-        // If HTTP/1.1 (and not "Connection: close") is supported, retrieve more files
+        // Retrieve more files (pipelined)
         if (isPersistent)
         {
             vector<pair<FileRequest*, string>> requests;
 
-            // Send the files (pipelined)
+            // Send the files
             for (string path : paths)
             {
                 FileRequest *request = new FileRequest(HTTP_VERSION_11, host, path);
@@ -187,6 +191,7 @@ int main(int argc, char *argv[])
                 }
                 else
                     _ERROR("Pipelined response was malformed/incomplete");
+                delete request;
             }
 
             // All files (for this connection) have been requested
