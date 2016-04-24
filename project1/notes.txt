@@ -169,3 +169,13 @@ Other
 - other (possibly) useful functions:
     - setsockopt()
     - getsockname()
+
+Testing
+=======
+
+Client
+    - save an HTTP response as a file
+    - run on one terminal:
+      nc -l $PORT < $FILE
+    - run on another:
+      ./web-client localhost:$PORT
