@@ -1,0 +1,4 @@
+HTTP/1.1 404 Not found
+Content-length: 6
+
+foobar
