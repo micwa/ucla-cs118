@@ -5,6 +5,7 @@
 
 #include <string>
 #include <vector>
+#include <sys/types.h>
 
 /* HTTP RELATED */
 
@@ -52,6 +53,9 @@ bool parseUrl(const std::string& url, std::string& host, int& port, std::string&
 bool splitHeaderLine(const std::string& headerLine, std::string& header, std::string& value);
 
 /* SOCKET RELATED */
+
+// Returns getaddrinfo() on the host, storing the TCP/IPv4 address in result.
+int getIpv4(const std::string& host, int port, struct addrinfo **result);
 
 // Read a line from sockfd terminated by "term", and store it in result.
 // Returns 0 if the socket returns EOF, -1 if there is an error, and result.size() otherwise.
