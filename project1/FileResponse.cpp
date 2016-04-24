@@ -40,7 +40,6 @@ int FileResponse::recvRequest(int sockfd)
         httpVersion_ = HTTP_DEFAULT_VERSION;
     if (res == -1)
         return -1;
-    _DEBUG("Received first line: " + firstLine.substr(0, firstLine.size() - CRLF.size()));
 
     // Receive subsequent lines
     vector<string> lines;

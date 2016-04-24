@@ -41,7 +41,6 @@ bool FileRequest::recvResponse(int sockfd)
     int status = getStatusCodeFromStatusLine(firstLine);
     if (httpVersion == "" || status == -1)
         return false;
-    _DEBUG("Received first line: " + firstLine.substr(0, firstLine.size() - CRLF.size()));
 
     // Receive subsequent lines
     vector<string> lines;
