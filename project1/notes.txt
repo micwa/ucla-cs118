@@ -140,18 +140,23 @@ Pitfalls
         - getaddrinfo()
         - socket()
         - connect()
+    - continue on:
         - send()
-        - recv()
+        - recv() (also on EOF and timeout)
         - close()
-    - also exit when:
-        - recv() == 0 (EOF) immediately after send()
-        - recv() timeouts
 - server error handling:
     - exit on:
         - getaddrinfo()
         - socket()
         - bind()
         - listen()
+    - continue on:
+        - accept()
+        - send()
+        - recv()
+        - close()
+    - close() connection on:
+        - recv() == EOF or timeout
 - function return values on error:
     - getaddrinfo():
         - returns nonzero, check gai_strerror(int)
@@ -179,3 +184,9 @@ Client
       nc -l $PORT < $FILE
     - run on another:
       ./web-client localhost:$PORT
+Server
+    - save an HTTP request as a file
+    - run on one terminal:
+      ./web-server localhost $PORT $DIR
+    - run on another:
+      nc localhost $PORT < $FILE
