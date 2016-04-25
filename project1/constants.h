@@ -13,4 +13,9 @@ const int RECV_TIMEOUT_SECS = 3;
 //const int RECV_TIMEOUT_SECS = 10;
 const int RECV_BUF_SIZE = 1024;
 
+// For server
+const int BACKLOG = 20; // convention
+const int LISTEN_WAIT_SEC = 10;
+const int LISTEN_WAIT_USEC = 0;
+
 #endif /* CONSTANTS_H_ */
