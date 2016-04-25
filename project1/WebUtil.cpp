@@ -3,6 +3,7 @@
 #include "WebUtil.h"
 #include "logerr.h"
 
+#include <algorithm>
 #include <cstring>
 #include <sys/select.h>
 #include <sys/types.h>
@@ -12,6 +13,33 @@
 using namespace std;
 
 /* HTTP RELATED */
+
+static int skipWhitespace(const string& line, int start);
+static int skipWhitespaceBackwards(const string& line, int start);
+
+bool checkRequestLineValid(const string& line)
+{
+    // Must start with "GET" (case sensitive)
+    if (line.substr(0, 3) != "GET")
+        return false;
+
+    // Must have two spaces (tabs don't count); be lenient with multiple spaces
+    int firstSpace = line.find(' ');
+    if (firstSpace == string::npos)
+        return false;
+    int secondSpace = line.find(' ', skipWhitespace(line, firstSpace + 1));
+    if (secondSpace == string::npos)
+        return false;
+    int thirdSpace = line.find(' ', skipWhitespace(line, secondSpace + 1));
+    if (thirdSpace != string::npos)
+        return false;
+
+    // After second space, must be "HTTP/<version>" (case sensitive)
+    int i = skipWhitespace(line, secondSpace + 1);
+    if (line.substr(i, 5) != "HTTP/" || i + 5 >= line.size())
+        return false;
+    return true;
+}
 
 string constructGetRequest(string version, string path)
 {
@@ -26,7 +54,7 @@ string constructStatusLine(string version, int status)
 
 string getVersionFromLine(const string& line)
 {
-    const string VERSION_START = "HTTP/";
+    const string VERSION_START = "HTTP/";   // Case-sensitive
 
     int i = line.find(VERSION_START);
     if (i == string::npos || i + 7 >= line.size())
@@ -65,9 +93,12 @@ int getStatusCodeFromStatusLine(const string& line)
 string getPathFromRequestLine(const string& line)
 {
     int firstSpace = line.find(' ');
+    if (firstSpace == -1)
+        return "";
+    firstSpace = skipWhitespace(line, firstSpace + 1) - 1;
     int secondSpace = line.find(' ', firstSpace + 1);
 
-    if (firstSpace == -1 || secondSpace == -1)
+    if (secondSpace == -1)
         return "";
     else
         return line.substr(firstSpace + 1, secondSpace - firstSpace - 1);

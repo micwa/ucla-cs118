@@ -12,6 +12,10 @@
 class HttpRequest;
 class HttpResponse;
 
+// Returns true if the line is in the format "GET SP+ <path> SP+ HTTP/<version>".
+// The "+" denotes one or more spaces.
+bool checkRequestLineValid(const std::string& line);
+
 // Return the first line of a HTTP GET request.
 std::string constructGetRequest(std::string version, std::string path);
 
