@@ -33,21 +33,22 @@ int FileResponse::recvRequest(int sockfd)
     // Receive the first line
     string firstLine;
     int res = readline(sockfd, firstLine);
-    if (res == 0)
-        return 0;
     
-    // As long as first line was read, set httpVersion_
+    // If there's no HTTP version, just use the default.
+    // An HttpRequest will only be created if the line is valid anyway.
+    if (res != 0 && !checkRequestLineValid(firstLine))
+        res = -1;
     httpVersion_ = getVersionFromLine(firstLine);   
     if (httpVersion_ == "")
         httpVersion_ = HTTP_DEFAULT_VERSION;
-    if (res == -1 || !checkRequestLineValid(firstLine))
-        return -1;
 
     // Receive subsequent lines
     vector<string> lines;
-    res = readlinesUntilEmpty(sockfd, lines);
+    int res2 = readlinesUntilEmpty(sockfd, lines);
     if (res == 0 || res == -1)
         return res;
+    else if (res2 == 0 || res2 == -1)
+        return res2;
 
     // Create an HttpRequest with a dummy host (host will be set during makeHttpRequest())
     string path = getPathFromRequestLine(firstLine);
