@@ -4,6 +4,9 @@
 #include "WebUtil.h"
 #include "logerr.h"
 
+#include <string>
+#include <vector>
+
 using namespace std;
 
 FileRequest::FileRequest(string httpVersion, string host, string path)

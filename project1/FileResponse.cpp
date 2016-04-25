@@ -6,6 +6,8 @@
 
 #include <iostream>
 #include <fstream>
+#include <string>
+#include <vector>
 
 using namespace std;
 
@@ -38,7 +40,7 @@ int FileResponse::recvRequest(int sockfd)
     httpVersion_ = getVersionFromLine(firstLine);   
     if (httpVersion_ == "")
         httpVersion_ = HTTP_DEFAULT_VERSION;
-    if (res == -1)
+    if (res == -1 || !checkRequestLineValid(firstLine))
         return -1;
 
     // Receive subsequent lines
@@ -47,7 +49,7 @@ int FileResponse::recvRequest(int sockfd)
     if (res == 0 || res == -1)
         return res;
 
-    // Create an HttpRequest with a dummy host (host will be set duuring makeHttpRequest())
+    // Create an HttpRequest with a dummy host (host will be set during makeHttpRequest())
     string path = getPathFromRequestLine(firstLine);
     delete request_;
     request_ = makeHttpRequest(httpVersion_, "", path, lines);
