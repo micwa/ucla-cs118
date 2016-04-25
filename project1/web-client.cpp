@@ -91,33 +91,35 @@ int main(int argc, char *argv[])
         string host           = it->first.first;
         int port              = it->first.second;
         vector<string>& paths = it->second;
-        struct addrinfo *allIps = NULL, *ip;
         int sockfd;
         bool isPersistent = false;
 
         // Establish a connection to the server
         {
+            struct addrinfo *servAddr = NULL, *addr;
             int status;
 
-            if ((status = getIpv4(host, port, &allIps)) != 0)
+            if ((status = getIpv4(host, port, &servAddr)) != 0)
                 errorAndExit(string("getaddrinfo: ") + gai_strerror(status));
 
             // Try all IPs
-            for (ip = allIps; ip != NULL; ip = ip->ai_next)
+            for (addr = servAddr; addr != NULL; addr = addr->ai_next)
             {
-                if ((sockfd = socket(ip->ai_family, ip->ai_socktype, ip->ai_protocol)) == -1)
+                if ((sockfd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol)) == -1)
                 {
                     perror("socket() error");
                     continue;
                 }
-                if (connect(sockfd, ip->ai_addr, ip->ai_addrlen) == -1)
+                if (connect(sockfd, addr->ai_addr, addr->ai_addrlen) == -1)
                 {
                     perror("connect() error");
                     continue;
                 }
                 break;
             }
-            if (ip == NULL)
+
+            freeaddrinfo(servAddr);
+            if (addr == NULL)
                 errorAndExit("No connection possible for host: " + host);
         }
 
@@ -154,8 +156,8 @@ int main(int argc, char *argv[])
                 string value;
                 if (status)
                 {
-                   if ((response->getHeader("Connection", value) && value == "close") ||
-                       response->getHttpVersion() != HTTP_VERSION_11)
+                   if (response->getHttpVersion() != HTTP_VERSION_11 ||
+                       (response->getHeader("Connection", value) && value == "close"))
                        isPersistent = false;
                    else
                        isPersistent = true;
@@ -203,7 +205,6 @@ int main(int argc, char *argv[])
         
         // Close the connection
         _DEBUG("CONNECTION CLOSED");
-        freeaddrinfo(allIps);
         close(sockfd);
     }
 
