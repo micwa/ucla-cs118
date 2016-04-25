@@ -1,0 +1,10 @@
+HTTP/1.0 200 OK
+Content-length: 3
+
+fooHTTP/1.0 200 OK
+Content-length: 3
+
+barHTTP/1.0 200 OK
+Content-length: 3
+
+baz

@@ -176,7 +176,10 @@ int main(int argc, char *argv[])
                 if (request->sendRequest(sockfd))
                     requests.push_back(make_pair(request, path));
                 else
+                {
                     _ERROR("Pipelined request not sent");
+                    delete request;
+                }
             }
             // Receive and save responses
             for (pair<FileRequest*, string> p : requests)
