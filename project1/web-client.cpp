@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
             if (status)     // Receive and save file
             {
                 status = request.recvResponse(sockfd);
-                if (status)
+                if (status) // Response was successfully received; could be 200, 400, or 404
                 {
                     response = request.getResponse();
                     trySaveResponse(path, response);
