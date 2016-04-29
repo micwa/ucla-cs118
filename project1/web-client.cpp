@@ -55,13 +55,17 @@ static void trySaveResponse(const string& path, HttpResponse *response)
         filename = DEFAULT_INDEX_HTML;
 
     // Save file
-    ofstream ofs(filename);
-    ofs << contents;
-    if (ofs.fail())
-        _ERROR("Failed to write response: " + filename);
-    else
-        _DEBUG("Response saved successfully: " + filename);
-    ofs.close();
+    try {
+        ofstream ofs(filename);
+        ofs << contents;
+        if (ofs.fail())
+            _ERROR("Failed to write response: " + filename);
+        else
+            _DEBUG("Response saved successfully: " + filename);
+        ofs.close();
+    } catch (...) {
+        _ERROR("Fatal error writing response: " + filename);
+    }
 }
 
 int main(int argc, char *argv[])
