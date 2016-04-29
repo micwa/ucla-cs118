@@ -10,7 +10,7 @@ OBJS = $(subst .cpp,.o,$(SOURCES))
 
 CFLAGS = -g -Wall -Wpedantic -Wextra -Wshadow -Wno-sign-compare \
 		 	-pthread -std=c++11
-TARGET = web-client web-server test
+TARGET = web-client web-server web-server-async test
 USERID=204458659
 .PHONY : all clean
 
@@ -19,6 +19,8 @@ all : $(TARGET)
 web-client : $(OBJS) web-client.o
 	$(CC) $(CFLAGS) -o $@ $^
 web-server : $(OBJS) web-server.o
+	$(CC) $(CFLAGS) -o $@ $^
+web-server-async : $(OBJS) web-server-async.o
 	$(CC) $(CFLAGS) -o $@ $^
 test : $(OBJS) test.o
 	$(CC) $(CFLAGS) -o $@ $^
