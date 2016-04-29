@@ -65,10 +65,8 @@ void handleConnection(int sockfd, const string& baseDirectory)
 int main(int argc, char *argv[])
 {
     if (argc != 4)
-    {
-        cout << "Invalid number of arguments!" << endl;
-        exit(EXIT_FAILURE);
-    }
+        errorAndExit("Invalid number of arguments");
+
     // Parse host, port, baseDirectory; also check for errors
     string host = argv[1];
     int port;
