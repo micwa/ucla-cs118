@@ -17,6 +17,8 @@ using namespace std;
 static int skipWhitespace(const string& line, int start);
 static int skipWhitespaceBackwards(const string& line, int start);
 
+const int MAXSENTBYTES = 1000000;
+
 bool checkRequestLineValid(const string& line)
 {
     // Must start with "GET" (case sensitive)
@@ -374,7 +376,7 @@ bool sendAll(int sockfd, const string& data)
 
     while (total < data.size())
     {
-        int sent = send(sockfd, buf + total, bytesLeft, 0);
+        int sent = send(sockfd, buf + total, min(bytesLeft, MAXSENTBYTES), 0);
         _DEBUG("Sent: " + to_string(sent) + " bytes");
         if (sent == -1)
             return false;
