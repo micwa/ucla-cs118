@@ -13,6 +13,8 @@ const int HTTP_DEFAULT_PORT = 80;
 const int RECV_TIMEOUT_SECS = 10;
 const int RECV_BUF_SIZE = 1024;
 
+const int MAX_SENT_BYTES = 1000000;
+
 // For server
 const int BACKLOG = 20; // convention
 const int LISTEN_WAIT_SEC = 10;
