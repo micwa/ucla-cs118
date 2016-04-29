@@ -89,18 +89,22 @@ bool FileResponse::sendResponse(int sockfd, const string& baseDir)
 
         // Read file, and 404 if not found (or I/O error)
         _DEBUG("Request OK, reading from: " + filepath);
-        ifstream ifs(filepath);
-        if (ifs.fail())
-            status = 404;
-        else
-        {
-            payload = string(istreambuf_iterator<char>(ifs), istreambuf_iterator<char>());
+        try {
+            ifstream ifs(filepath);
             if (ifs.fail())
                 status = 404;
             else
-                status = 200;
+            {
+                payload = string(istreambuf_iterator<char>(ifs), istreambuf_iterator<char>());
+                if (ifs.fail())
+                    status = 404;
+                else
+                    status = 200;
+            }
+            ifs.close();
+        } catch (...) {
+            status = 404;
         }
-        ifs.close();
         if (status == 404)
             _ERROR("Failed to read file: " + filepath);
     }
