@@ -331,7 +331,7 @@ bool recvAll(int sockfd, std::string& result, int nbytes)
     {
         int n = min(RECV_BUF_SIZE, bytesLeft);
         int received = recvWithTimeout(sockfd, buf, n, RECV_TIMEOUT_SECS);
-        _DEBUG("Received: " + to_string(received) + " bytes");
+        //_DEBUG("Received: " + to_string(received) + " bytes");
         if (received == 0 || received == -1)
             return false;
 
