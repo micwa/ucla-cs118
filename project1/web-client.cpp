@@ -43,6 +43,11 @@ static void trySaveResponse(const string& path, HttpResponse *response)
     const string DEFAULT_INDEX_HTML = "index.html";
     string contents = response->getPayload();
 
+    if (response->getStatus() != 200)
+    {
+        _DEBUG("HTTP request not OK, status " + to_string(response->getStatus()));
+        return;
+    }
     if (contents.empty())
         return;
 
