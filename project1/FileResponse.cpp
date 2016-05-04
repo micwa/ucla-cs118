@@ -127,7 +127,7 @@ bool FileResponse::sendResponse(int sockfd, const string& baseDir)
                 ifs.read(buf, toRead);
                 if (ifs.fail())
                     return false;
-                if (!sendAll(sockfd, string(buf)))
+                if (!sendAll(sockfd, string(buf, toRead)))
                     return false;
                 bytesLeft -= toRead;
             }

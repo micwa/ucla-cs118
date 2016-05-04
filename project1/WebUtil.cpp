@@ -370,7 +370,7 @@ bool sendAll(int sockfd, const string& data)
     while (total < data.size())
     {
         int sent = send(sockfd, buf + total, bytesLeft, 0);
-        _DEBUG("Sent: " + to_string(sent) + " bytes");
+        //_DEBUG("Sent: " + to_string(sent) + " bytes");
         if (sent == -1)
             return false;
         total += sent;
