@@ -7,6 +7,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <sys/stat.h>
 
 using namespace std;
 
@@ -100,20 +101,24 @@ bool FileResponse::sendResponse(int sockfd, const string& baseDir)
     // Read file, and 404 if not found (or I/O error)
     _DEBUG("Request OK, reading from: " + filepath);
     ifstream ifs(filepath);
+    int bytesLeft;
 
-    if (ifs)
+    // Get the payload length (if error, 404)
+    struct stat s;
+    int res = stat(filepath.c_str(), &s);
+    if (res == 0)
+        bytesLeft = s.st_size;
+    else
+        bytesLeft = -1;
+
+    if (ifs && bytesLeft >= 0)
     {
+        // Sent HttpResponse, then the file
+        if (!sendHttpResponse(sockfd, httpVersion_, 200, bytesLeft))
+            return false;
+
         try {
             char buf[MAX_SENT_BYTES];
-            int bytesLeft;
-
-            // Get the payload length, then send an HttpResponse
-            ifs.seekg(ifs.end);
-            bytesLeft = ifs.tellg();
-            ifs.seekg(ifs.beg);
-
-            if (!sendHttpResponse(sockfd, httpVersion_, 200, bytesLeft))
-                return false;
 
             // Send the file, in increments of MAX_SENT_BYTES
             while (bytesLeft > 0)
