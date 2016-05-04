@@ -4,6 +4,8 @@
 #include "WebUtil.h"
 #include "logerr.h"
 
+#include <climits>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -29,14 +31,46 @@ HttpResponse *FileRequest::getResponse() const
 
 bool FileRequest::sendRequest(int sockfd)
 {
-    return sendAll(sockfd, request_->toString());
+    return sendAll(sockfd, request_->headerToString());
+}
+
+bool FileRequest::saveStream(int sockfd, const string& filename, int nbytes)
+{
+    int bytesLeft = nbytes;
+    ofstream ofs(filename);
+
+    if (bytesLeft == -1)
+        bytesLeft = INT_MAX;
+    if (ofs)
+    {
+        string result;
+        while (bytesLeft > 0)
+        {
+            int toRecv = min(bytesLeft, MAX_RECV_BYTES);
+            bool res = recvAll(sockfd, result, toRecv);
+
+            // If nbytes == -1, connection close/timeout/error means EOF
+            if (!res)
+                return nbytes == -1;
+
+            ofs << result;
+            if (nbytes != -1)
+                bytesLeft -= toRecv;
+        }
+        _DEBUG("Payload saved successfully: " + filename);
+        return true;
+    }
+    else
+    {
+        _ERROR("Can not create file to save payload: " + filename);
+        return false;
+    }
 }
 
 // To be well-formed, the response must have:
 //  - HTTP version and status
 //  - well-formed header lines
-//  - if status == 200, must have content-length (i.e., payload)
-bool FileRequest::recvResponse(int sockfd)
+bool FileRequest::recvResponse(int sockfd, const string& filename)
 {
     // Receive the first line
     string firstLine;
@@ -55,21 +89,28 @@ bool FileRequest::recvResponse(int sockfd)
 
     // Create HttpResponse from lines read
     delete response_;
-    response_ = makeHttpResponse(httpVersion, status, "", lines);
+    response_ = makeHttpResponse(httpVersion, status, lines);
     if (!response_)
         return false;
 
-    // Receive payload only if "Content-length" header present
-    string size;
-    string payload;
-    if (response_->getHeader("Content-length", size))
+    // Receive payload only if status is 200
+    if (status == 200)
     {
-        if (!recvAll(sockfd, payload, stoi(size)))
+        int length = -1;
+        string length_str;
+        response_->getHeader("Content-length", length_str);
+        try {
+            length = stoi(length_str);
+        } catch (...) {
+            length = -1;
+        }
+        if (!saveStream(sockfd, filename, length))
             return false;
-        response_->setPayload(payload);
     }
-    else if (status == 200)
-        return false;
+    else
+    {
+        _DEBUG("Response not OK, status " + to_string(status));
+    }
 
     _DEBUG("HttpResponse received successfully");
     return true;
