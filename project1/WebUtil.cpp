@@ -321,12 +321,11 @@ int readlinesUntilEmpty(int sockfd, vector<string>& lines)
 
 bool recvAll(int sockfd, std::string& result, int nbytes)
 {
-    char buf[RECV_BUF_SIZE + 1];
-    int total = 0;
+    char buf[RECV_BUF_SIZE];
     int bytesLeft = nbytes;
 
     result = "";
-    while (total < nbytes)
+    while (bytesLeft > 0)
     {
         int n = min(RECV_BUF_SIZE, bytesLeft);
         int received = recvWithTimeout(sockfd, buf, n, RECV_TIMEOUT_SECS);
@@ -334,12 +333,10 @@ bool recvAll(int sockfd, std::string& result, int nbytes)
         if (received == 0 || received == -1)
             return false;
 
-        buf[received] = '\0';
-        result += buf;
-        total += received;
+        result.append(buf, received);
         bytesLeft -= received;
     }
-    _DEBUG("Total received: " + to_string(total) + " bytes");
+    _DEBUG("Total received: " + to_string(result.size()) + " bytes");
     return true;
 }
 
