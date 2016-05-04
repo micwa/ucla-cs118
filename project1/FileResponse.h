@@ -12,6 +12,9 @@ private:
     std::string httpVersion_;   // HTTP version from request
     HttpRequest *request_;
     HttpResponse *response_;
+
+    // Helper function for creating and sending an HttpResponse.
+    bool sendHttpResponse(int sockfd, const std::string& httpVersion, int status, int payloadLength = -1);
 public:
     FileResponse();
     ~FileResponse();

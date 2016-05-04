@@ -4,7 +4,6 @@
 #include "WebUtil.h"
 #include "logerr.h"
 
-#include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -72,52 +71,70 @@ int FileResponse::recvRequest(int sockfd)
     return 1;
 }
 
+bool FileResponse::sendHttpResponse(int sockfd, const string& httpVersion, int status, int payloadLength)
+{
+    delete response_;
+    response_ = new HttpResponse(httpVersion, status);
+    _DEBUG("Created HttpResponse with version " + httpVersion + ", status " + to_string(status));
+    if (payloadLength >= 0)
+        response_->setHeader("Content-length", to_string(payloadLength));
+
+    return sendAll(sockfd, response_->headerToString());
+}
+
 bool FileResponse::sendResponse(int sockfd, const string& baseDir)
 {
     if (httpVersion_ == "")
         return false;
 
-    string httpVersion = httpVersion_;
-    int status;
-    string payload;
-
-    if (request_)     // Request was received and in the correct format
-    {
-        // Parse request for payload path (file path)
-        string line = request_->getFirstLine();
-        string filepath = baseDir + getPathFromRequestLine(line);
-
-        // Read file, and 404 if not found (or I/O error)
-        _DEBUG("Request OK, reading from: " + filepath);
-        try {
-            ifstream ifs(filepath);
-            if (ifs.fail())
-                status = 404;
-            else
-            {
-                payload = string(istreambuf_iterator<char>(ifs), istreambuf_iterator<char>());
-                if (ifs.fail())
-                    status = 404;
-                else
-                    status = 200;
-            }
-            ifs.close();
-        } catch (...) {
-            status = 404;
-        }
-        if (status == 404)
-            _ERROR("Failed to read file: " + filepath);
-    }
-    else                // Request was received, but malformed
+    if (!request_)      // Request was received, but malformed => send 400
     {
         _DEBUG("Request not OK");
-        status = 400;
+        return sendHttpResponse(sockfd, httpVersion_, 400);
     }
-    
-    // Delete old response and construct new one
-    delete response_;
-    response_ = new HttpResponse(httpVersion, status, payload);
-    _DEBUG("Created HttpResponse with version " + httpVersion + ", status " + to_string(status));
 
-    return sendAll(sockfd, response_->toString());
+    // Parse request for payload path (file path)
+    string line = request_->getFirstLine();
+    string filepath = baseDir + getPathFromRequestLine(line);
+
+    // Read file, and 404 if not found (or I/O error)
+    _DEBUG("Request OK, reading from: " + filepath);
+    ifstream ifs(filepath);
+
+    if (ifs)
+    {
+        try {
+            char buf[MAX_SENT_BYTES];
+            int bytesLeft;
+
+            // Get the payload length, then send an HttpResponse
+            ifs.seekg(ifs.end);
+            bytesLeft = ifs.tellg();
+            ifs.seekg(ifs.beg);
+
+            if (!sendHttpResponse(sockfd, httpVersion_, 200, bytesLeft))
+                return false;
+
+            // Send the file, in increments of MAX_SENT_BYTES
+            while (bytesLeft > 0)
+            {
+                int toRead = min(MAX_SENT_BYTES, bytesLeft);
+                ifs.read(buf, toRead);
+                if (ifs.fail())
+                    return false;
+                if (!sendAll(sockfd, string(buf)))
+                    return false;
+                bytesLeft -= toRead;
+            }
+        } catch (...) {
+            // Can't send anything else to remedy the situation, so just return
+            return false;
+        }
+        return true;
+    }
+    else
+    {
+        _ERROR("Failed to read file: " + filepath);
+        return sendHttpResponse(sockfd, httpVersion_, 404);
+    }
 }

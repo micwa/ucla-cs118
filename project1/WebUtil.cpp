@@ -361,7 +361,6 @@ int recvWithTimeout(int sockfd, char *buf, int nbytes, int timeout)
         return 0;
     }
 
-    // Return recv()
     return recv(sockfd, buf, nbytes, 0);
 }
 
@@ -373,7 +372,7 @@ bool sendAll(int sockfd, const string& data)
 
     while (total < data.size())
     {
-        int sent = send(sockfd, buf + total, min(bytesLeft, MAX_SENT_BYTES), 0);
+        int sent = send(sockfd, buf + total, bytesLeft, 0);
         _DEBUG("Sent: " + to_string(sent) + " bytes");
         if (sent == -1)
             return false;
