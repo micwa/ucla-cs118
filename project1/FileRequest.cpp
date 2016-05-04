@@ -37,6 +37,7 @@ bool FileRequest::sendRequest(int sockfd)
 bool FileRequest::saveStream(int sockfd, const string& filename, int nbytes)
 {
     int bytesLeft = nbytes;
+    int total = 0;
     ofstream ofs(filename);
 
     if (bytesLeft == -1)
@@ -54,10 +55,12 @@ bool FileRequest::saveStream(int sockfd, const string& filename, int nbytes)
                 return nbytes == -1;
 
             ofs << result;
+            total += toRecv;
             if (nbytes != -1)
                 bytesLeft -= toRecv;
         }
-        _DEBUG("Payload saved successfully: " + filename);
+        ofs.close();
+        _DEBUG("Payload saved successfully: " + filename + " (" + to_string(total) + " bytes)");
         return true;
     }
     else

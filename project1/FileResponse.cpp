@@ -126,6 +126,7 @@ bool FileResponse::sendResponse(int sockfd, const string& baseDir)
                     return false;
                 bytesLeft -= toRead;
             }
+            ifs.close();
         } catch (...) {
             // Can't send anything else to remedy the situation, so just return
             return false;
