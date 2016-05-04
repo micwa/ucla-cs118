@@ -44,23 +44,28 @@ bool FileRequest::saveStream(int sockfd, const string& filename, int nbytes)
         bytesLeft = INT_MAX;
     if (ofs)
     {
-        string result;
-        while (bytesLeft > 0)
-        {
-            int toRecv = min(bytesLeft, MAX_RECV_BYTES);
-            bool res = recvAll(sockfd, result, toRecv);
+        try {
+            string result;
+            while (bytesLeft > 0)
+            {
+                int toRecv = min(bytesLeft, MAX_RECV_BYTES);
+                bool res = recvAll(sockfd, result, toRecv);
 
-            // If nbytes == -1, connection close/timeout/error means EOF
-            if (!res)
-                return nbytes == -1;
+                // If nbytes == -1, connection close/timeout/error means EOF
+                if (!res)
+                    return nbytes == -1;
 
-            ofs << result;
-            total += toRecv;
-            if (nbytes != -1)
-                bytesLeft -= toRecv;
+                ofs << result;
+                total += toRecv;
+                if (nbytes != -1)
+                    bytesLeft -= toRecv;
+            }
+            ofs.close();
+            _DEBUG("Payload saved successfully: " + filename + " (" + to_string(total) + " bytes)");
+        } catch (...) {
+            _ERROR("Can not write to file: " + filename);
+            return false;
         }
-        ofs.close();
-        _DEBUG("Payload saved successfully: " + filename + " (" + to_string(total) + " bytes)");
         return true;
     }
     else
