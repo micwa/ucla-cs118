@@ -36,20 +36,10 @@ static void errorAndExit(const string& msg)
     exit(EXIT_FAILURE);
 }
 
-// Save the payload (if any) from the given HttpResponse to a filename
-// extracted from the given path.
-static void trySaveResponse(const string& path, HttpResponse *response)
+// Extracts the filename from the given path.
+static string filenameFromPath(const string& path)
 {
     const string DEFAULT_INDEX_HTML = "index.html";
-    string contents = response->getPayload();
-
-    if (response->getStatus() != 200)
-    {
-        _DEBUG("HTTP request not OK, status " + to_string(response->getStatus()));
-        return;
-    }
-    if (contents.empty())
-        return;
 
     // Extract filename from path
     int i = path.size() - 1;
@@ -59,18 +49,7 @@ static void trySaveResponse(const string& path, HttpResponse *response)
     if (filename.empty())
         filename = DEFAULT_INDEX_HTML;
 
-    // Save file
-    try {
-        ofstream ofs(filename);
-        ofs << contents;
-        if (ofs.fail())
-            _ERROR("Failed to write response: " + filename);
-        else
-            _DEBUG("Response saved successfully: " + filename);
-        ofs.close();
-    } catch (...) {
-        _ERROR("Fatal error writing response: " + filename);
-    }
+    return filename;
 }
 
 int main(int argc, char *argv[])
@@ -141,12 +120,10 @@ int main(int argc, char *argv[])
             int status = request.sendRequest(sockfd);
             if (status)     // Receive and save file
             {
-                status = request.recvResponse(sockfd);
+                string filename = filenameFromPath(path);
+                status = request.recvResponse(sockfd, filename);
                 if (status) // Response was successfully received; could be 200, 400, or 404
-                {
                     response = request.getResponse();
-                    trySaveResponse(path, response);
-                }
                 else
                     _ERROR("Response was malformed/incomplete");
             }
@@ -197,13 +174,9 @@ int main(int argc, char *argv[])
             {
                 FileRequest *request = p.first;
                 string path = p.second;
+                string filename = filenameFromPath(path);
 
-                if (request->recvResponse(sockfd))
-                {
-                    HttpResponse *response = request->getResponse();
-                    trySaveResponse(path, response);
-                }
-                else
+                if (!request->recvResponse(sockfd, filename))
                     _ERROR("Pipelined response was malformed/incomplete");
                 delete request;
             }
