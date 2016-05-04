@@ -11,16 +11,14 @@ class HttpResponse : public HttpMessage
 private:
     int status_;
 public:
-    HttpResponse(std::string version, int status, std::string payload);
+    HttpResponse(std::string version, int status);
     int getStatus() const;
 };
 
-inline HttpResponse::HttpResponse(std::string version, int status, std::string payload)
+inline HttpResponse::HttpResponse(std::string version, int status)
     : HttpMessage(constructStatusLine(version, status)),
       status_(status)
-{
-    setPayload(payload);
-}
+{}
 
 inline int HttpResponse::getStatus() const { return status_; }
 

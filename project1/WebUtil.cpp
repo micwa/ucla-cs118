@@ -148,10 +148,9 @@ HttpRequest *makeHttpRequest(string httpVersion, string host, string path,
     }
 }
 
-HttpResponse *makeHttpResponse(string httpVersion, int status, string payload,
-                               const vector<string>& headerLines)
+HttpResponse *makeHttpResponse(string httpVersion, int status, const vector<string>& headerLines)
 {
-    HttpResponse *response = new HttpResponse(httpVersion, status, payload);
+    HttpResponse *response = new HttpResponse(httpVersion, status);
 
     if (populateHeaders(response, headerLines))
         return response;

@@ -3,6 +3,7 @@
 #include "WebUtil.h"
 
 #include <algorithm>
+#include <sys/stat.h>
 
 using namespace std;
 
@@ -54,19 +55,7 @@ void HttpMessage::setHeader(const string header, const string value)
     headers_[h] = value;
 }
 
-string HttpMessage::getPayload() const
-{
-    return payload_;
-}
-
-void HttpMessage::setPayload(const string payload)
-{
-    payload_ = payload;
-    setHeader("Content-Length", to_string(payload.size()));
-}
-
-// Returns a string representation of this HttpMessage
-string HttpMessage::toString()
+string HttpMessage::headerToString()
 {
     string result;
 
@@ -75,6 +64,5 @@ string HttpMessage::toString()
         result += it->first + ": " + it->second + CRLF;
 
     result += CRLF;
-    result += payload_;
     return result;
 }

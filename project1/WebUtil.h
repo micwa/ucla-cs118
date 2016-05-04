@@ -41,10 +41,9 @@ HttpRequest *makeHttpRequest(std::string httpVersion, std::string host, std::str
                              const std::vector<std::string>& headerLines);
 
 // Returns a newly created HttpResponse constructed using the given
-// (httpVersion, status, payload) and headerLines.
+// (httpVersion, status) and headerLines.
 // If any of the header lines are malformed, returns nullptr.
-HttpResponse *makeHttpResponse(std::string httpVersion, int status, std::string payload,
-                               const std::vector<std::string>& headerLines);
+HttpResponse *makeHttpResponse(std::string httpVersion, int status, const std::vector<std::string>& headerLines);
 
 // Parses the given url into a (url, port, path) combination, with default port = 80.
 // E.g., for "http://www.foo.com:8080/bar.html", (url, port, path) = ("www.foo.com", 8080, "/bar.html")
