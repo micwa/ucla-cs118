@@ -4,6 +4,7 @@
 #include "WebUtil.h"
 #include "logerr.h"
 
+#include <csignal>
 #include <cstring>
 #include <iostream>
 #include <thread>
@@ -21,6 +22,12 @@ static void errorAndExit(const string& msg)
 {
     cerr << msg << endl;
     exit(EXIT_FAILURE);
+}
+
+static void sigintHandler(int)
+{
+    // Turn off the server
+    serverOn = false;
 }
 
 void handleConnection(int sockfd, const string& baseDirectory)
@@ -66,6 +73,9 @@ int main(int argc, char *argv[])
 {
     if (argc != 4)
         errorAndExit("Invalid number of arguments");
+
+    // Install signal handler
+    signal(SIGINT, sigintHandler);
 
     // Parse host, port, baseDirectory; also check for errors
     string host = argv[1];
