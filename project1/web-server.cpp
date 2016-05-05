@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
     int sockfd;
     {
         struct addrinfo *servAddr = NULL, *addr;
-        int status, yes;
+        int status, yes = 1;
 
         if ((status = getIpv4(host, port, &servAddr)) != 0)
             errorAndExit(string("getaddrinfo: ") + gai_strerror(status));
