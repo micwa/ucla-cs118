@@ -83,6 +83,8 @@ bool FileRequest::recvResponse(int sockfd, const string& filename)
     // Receive the first line
     string firstLine;
     int res = readline(sockfd, firstLine);
+    if (res == 0)
+	return false;
 
     string httpVersion = getVersionFromLine(firstLine);   
     int status = getStatusCodeFromStatusLine(firstLine);
@@ -92,7 +94,7 @@ bool FileRequest::recvResponse(int sockfd, const string& filename)
     // Receive subsequent lines
     vector<string> lines;
     int res2 = readlinesUntilEmpty(sockfd, lines);
-    if (res == 0 || res == -1 || (res2 == 0 && status == 200) || res2 == -1)
+    if (res == -1 || (res2 == 0 && status == 200) || res2 == -1)
         return false;
 
     // Create HttpResponse from lines read
