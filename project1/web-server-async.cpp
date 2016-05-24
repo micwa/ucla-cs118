@@ -4,6 +4,7 @@
 #include "WebUtil.h"
 #include "logerr.h"
 
+#include <csignal>
 #include <cstring>
 #include <ctime>
 #include <iostream>
@@ -23,6 +24,12 @@ static void errorAndExit(const string& msg)
 {
     cerr << msg << endl;
     exit(EXIT_FAILURE);
+}
+
+static void sigintHandler(int)
+{
+    // Turn off the server
+    serverOn = false;
 }
 
 static time_t getCurrentTime()
@@ -68,6 +75,9 @@ int main(int argc, char *argv[])
     if (argc != 4)
         errorAndExit("Invalid number of arguments");
 
+    // Install signal handler
+    signal(SIGINT, sigintHandler);
+
     // Parse host, port, baseDirectory; also check for errors
     string host = argv[1];
     int port;
@@ -89,7 +99,7 @@ int main(int argc, char *argv[])
     int listenfd;
     {
         struct addrinfo *servAddr = NULL, *addr;
-        int status, yes;
+        int status, yes = 1;
 
         if ((status = getIpv4(host, port, &servAddr)) != 0)
             errorAndExit(string("getaddrinfo: ") + gai_strerror(status));
