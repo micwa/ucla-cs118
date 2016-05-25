@@ -1,3 +1,5 @@
+#include <cstring.h>
+#include <sys/types.h>
 #include simpleTCP.h
 
 simpleTCP::simpleTCP(simpleHeader header, char* message)
