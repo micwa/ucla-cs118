@@ -29,10 +29,10 @@ int main(int argc, char *argv[])
     {
         perror("Not enough arguments");
     }
-    
-    int port = atoi(argv[2]);
+
     string host = argv[1];
-    
+    int port = atoi(argv[2]);
+
     int sockfd;
     struct sockaddr server_addr;
     socklen_t server_addr_length;
@@ -51,11 +51,6 @@ int main(int argc, char *argv[])
             if ((sockfd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol)) == -1)
             {
                 perror("socket() error");
-                continue;
-            }
-            if (connect(sockfd, addr->ai_addr, addr->ai_addrlen) == -1)
-            {
-                perror("connect() error");
                 continue;
             }
             break;
