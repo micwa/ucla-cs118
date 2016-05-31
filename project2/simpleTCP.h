@@ -1,10 +1,7 @@
 #ifndef SIMPLETCP_H
 #define SIMPLETCP_H
 
-const int MAX_PAYLOAD = 1024;
-const int F_ACK = 0x4;
-const int F_SYN = 0x2;
-const int F_FIN = 0x1;
+#include 'constants.h'
 
 struct simpleHeader
 {
@@ -20,20 +17,24 @@ class simpleTCP
 private:
     simpleHeader m_header;
     char m_payload[MAX_PAYLOAD];
+    int m_payload_size;
 public:
-    simpleTCP(simpleHeader header, char* message);
+    simpleTCP(simpleHeader header, const char *message, int size);
     void setSeqNum(uint16_t seqnum);
     void setAckNum(uint16_t acknum);
     void setWindow(uint16_t windownum);
     void setACK();
     void setSYN();
     void setFIN();
-    uint16_t getSeqNum();
-    uint16_t getAckNum();
-    uint16_t getWindow();
-    bool getACK();
-    bool getSYN();
-    bool getFIN();
+    void setMessage(const char *message, int size)
+    uint16_t getSeqNum() const;
+    uint16_t getAckNum() const;
+    uint16_t getWindow() const;
+    bool getACK() const;
+    bool getSYN() const;
+    bool getFIN() const;
+    char *getMessage() const;
+    int getPayloadSize() const;
 };
 
 #endif SIMPLETCP_H
