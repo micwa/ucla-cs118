@@ -1,4 +1,4 @@
-#include <cstdlib.h>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <iostream>
@@ -17,6 +17,12 @@
 
 using namespace std;
 
+static void errorAndExit(const string& msg)
+{
+    cerr << msg << endl;
+    exit(EXIT_FAILURE);
+}
+
 int main(int argc, char *argv[])
 {
     if (argc != 3)
@@ -25,45 +31,43 @@ int main(int argc, char *argv[])
     }
     
     int port = atoi(argv[2]);
-    string hostname = argv[1];
+    string host = argv[1];
     
-    // just proj1 stuff that I modified, but this is the server version but connect instead of bind
-    // change/fix it as needed
     int sockfd;
-    
-    struct addrinfo *servAddr = NULL, *addr;
-    int status, yes = 1;
-    string host = "localhost"; // assuming that it's always localhost as proj2 doesn't specify
-    if ((status = getIpv4(host, port, &servAddr)) != 0)
-        perror("getaddrinfo: " + gai_strerror(status));
-    
-    // Try all IPs
-    for (addr = servAddr; addr != NULL; addr = addr->ai_next)
+    struct sockaddr server_addr;
+    socklen_t server_addr_length;
+
+    // Connect to server and store connection (addrinfo) information
     {
-        if ((sockfd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol)) == -1)
+        struct addrinfo *servAddr = NULL, *addr;
+        int status, yes = 1;
+
+        if ((status = getIpv4(host, port, &servAddr)) != 0)
+            errorAndExit(string("getaddrinfo: ") + gai_strerror(status));
+        
+        // Try all IPs
+        for (addr = servAddr; addr != NULL; addr = addr->ai_next)
         {
-            perror("socket() error");
-            continue;
+            if ((sockfd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol)) == -1)
+            {
+                perror("socket() error");
+                continue;
+            }
+            if (connect(sockfd, addr->ai_addr, addr->ai_addrlen) == -1)
+            {
+                perror("connect() error");
+                continue;
+            }
+            break;
         }
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
-        {
-            perror("setsockopt() error");
-            continue;
-        }
-        if (connect(sockfd, addr->ai_addr, addr->ai_addrlen) == -1)
-        {
-            perror("connect() error");
-            continue;
-        }
-        break;
+        
+        if (addr == NULL)
+            errorAndExit("No connection possible for host: " + host);
+
+        // Free memory later
+        server_addr = addr->ai_addr;
+        server_addr_length = addr->ai_addrlen;
     }
-    
-    struct sockaddr server_addr = addr->ai_addr;
-    socklen_t server_addr_length = sizeof(server_addr);
-    
-    freeaddrinfo(servAddr);
-    if (addr == NULL)
-        perror("No connection possible for host: " + host);
     
     int seq_num, ack_num, cong_window;
     simpleTCP recv_packet;
