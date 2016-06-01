@@ -14,6 +14,7 @@
 #include "simpleTCP.h"
 #include "constants.h"
 #include "TCPutil.h"
+#include "logerr.h"
 
 using namespace std;
 
@@ -69,6 +70,7 @@ int main(int argc, char *argv[])
     struct simpleHeader header;
     int nbytes;
     bool init_ack;
+    bool retransmission;
     struct timeval timeout;
     
     srand(time(NULL));
@@ -108,7 +110,7 @@ int main(int argc, char *argv[])
             else
             {
                 init_ack = recv_packet.getACK() && recv_packet.getSYN();
-                ack_num = (recv_packet.seq_num + 1) % MAX_SEQ_NUM; // payload is 0 bytes, but can't do + 0
+                ack_num = (recv_packet.seq_num + 1) % MAX_SEQ_NUM;
             }
         }
         else
@@ -130,6 +132,18 @@ int main(int argc, char *argv[])
     if (sendto(sockfd, (void *)&syn_packet, sizeof(syn_packet), 0, server_addr, &server_addr_length == -1))
     {
         perror("sendto() error in client while sending ACK");
+    }
+    else
+    {
+        if (!retransmission)
+        {
+            cout << "Sending ACK packet " << recv_packet.getAckNum() << endl;
+            retransmission = true;
+        }
+        else
+        {
+            cout << "Sending ACK packet " << recv_packet.getAckNum() << " Retransmission" << endl;
+        }
     }
     
     // file stuff and fin/fin-ack/ack stuff here
