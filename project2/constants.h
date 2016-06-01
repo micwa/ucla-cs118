@@ -9,7 +9,7 @@ const int F_FIN = 0x1;
 
 // Congestion control/timers
 const int MAX_PACKET_LENGTH = 1032;
-const int MAX_SEQ_NUM = 30720
+const int MAX_SEQ_NUM = 30720;
 const int INIT_CONG_SIZE = 1024;
 const int INIT_SLOWSTART = 1024;
 const int INIT_RTO = 500; // ms

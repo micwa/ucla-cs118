@@ -1,10 +1,12 @@
-#include <cstring.h>
-#include <sys/types.h>
-#include simpleTCP.h
-#include constants.h
+#include <cstring>
+
+#include "simpleTCP.h"
+
+simpleTCP::simpleTCP()
+{}
 
 simpleTCP::simpleTCP(simpleHeader header, const char *message, int size)
-    : m_header(header), m_payload_size(size)
+    : m_header(header), m_size(size)
 {
     memcpy(m_payload, message, size);
 }
@@ -26,17 +28,17 @@ void simpleTCP::setWindow(uint16_t windownum)
 
 void simpleTCP::setACK()
 {
-    flags |= F_ACK;
+    m_header.flags |= F_ACK;
 }
 
 void simpleTCP::setSYN()
 {
-    flags |= F_SYN;
+    m_header.flags |= F_SYN;
 }
 
 void simpleTCP::setFIN()
 {
-    flags |= F_FIN;
+    m_header.flags |= F_FIN;
 }
 
 void simpleTCP::setMessage(const char *message, int size)
@@ -61,28 +63,30 @@ uint16_t simpleTCP::getWindow() const
 
 bool simpleTCP::getACK() const
 {
-    return !!(flags & F_ACK);
+    return !!(m_header.flags & F_ACK);
 }
 
 bool simpleTCP::getSYN() const
 {
-    return !!(flags & F_SYN);
+    return !!(m_header.flags & F_SYN);
 }
 
 bool simpleTCP::getFIN() const
 {
-    return !!(flags & F_FIN);
+    return !!(m_header.flags & F_FIN);
 }
 
-char* simpleTCP::getMessage() const
+const char *simpleTCP::getMessage() const
 {
-    char message[1024];
-    memcpy(message, m_payload, m_size);
-    return message;
+    return m_payload;
 }
 
-int simpleTCP::getSize() const
+int simpleTCP::getHeaderSize() const
+{
+    return sizeof(struct simpleHeader);
+}
+
+int simpleTCP::getPayloadSize() const
 {
     return m_size;
 }
-
