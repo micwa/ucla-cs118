@@ -100,7 +100,8 @@ int simpleTCP::getPayloadSize() const
 {
     return m_size;
 }
- int simpleTCP::getSegmentSize() const
+
+int simpleTCP::getSegmentSize() const
 {
     return getHeaderSize() + getPayloadSize();
 }
