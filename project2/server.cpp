@@ -14,6 +14,7 @@
 #include "simpleTCP.h"
 #include "constants.h"
 #include "TCPutil.h"
+#include "logerr.h"
 
 using namespace std;
 
@@ -66,12 +67,13 @@ int main(int argc, char *argv[])
         freeaddrinfo(servAddr);
         if (addr == NULL)
             errorAndExit("No connection possible for host: " + host);
-
+        /* don't need listen() for UDP
         if (listen(sockfd, BACKLOG) == -1)
         {
             perror("listen() error");
             return 1;
         }
+        */
     }
 
     int seq_num, ack_num, cong_window;
@@ -136,7 +138,7 @@ int main(int argc, char *argv[])
                 else
                 {
                     init_ack = recv_packet.getACK();
-                    ack_num = (recv_packet.seq_num + 1) % MAX_SEQ_NUM; // payload is 0 bytes, but can't do + 0
+                    ack_num = (recv_packet.seq_num + 1) % MAX_SEQ_NUM; 
                     cout << "Receiving ACK packet " << recv_packet.getAckNum() << endl;
                 }
             }
