@@ -5,8 +5,6 @@ parse arguments into host/port
 getaddrinfo() for easy interface with next two functions
   UDP in IPv4
 socket() to create socket
-  setsockopt() for socket stuff
-connect() to connect to server
 
 Initiate Syn Handshake
   Send a SYN packet to server
