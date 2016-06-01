@@ -35,13 +35,13 @@ int main(int argc, char *argv[])
     int port = atoi(argv[2]);
 
     int sockfd;
-    struct sockaddr server_addr;
+    struct sockaddr *server_addr;
     socklen_t server_addr_length;
 
     // Connect to server and store connection (addrinfo) information
     {
         struct addrinfo *servAddr = NULL, *addr;
-        int status, yes = 1;
+        int status;
 
         if ((status = getIpv4(host, port, &servAddr)) != 0)
             errorAndExit(string("getaddrinfo: ") + gai_strerror(status));
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
             errorAndExit("No connection possible for host: " + host);
 
         // Free memory later
-        server_addr = addr->ai_addr;
+        server_addr = (struct sockaddr *)addr->ai_addr;
         server_addr_length = addr->ai_addrlen;
     }
     
@@ -70,15 +70,12 @@ int main(int argc, char *argv[])
     struct simpleHeader header;
     int nbytes;
     bool init_ack;
-    bool retransmission;
-    struct timeval timeout;
+    bool retransmission = false;
     
     srand(time(NULL));
     seq_num = rand() % MAX_SEQ_NUM; // random initial sequence number
     ack_num = 0; // initally unusued
     cong_window = INIT_CONG_SIZE; // clients don't need congestion window, so this can be ignored
-    timeout.tv_sec = 0;
-    timeout.tv_usec = INIT_RTO * 1000;
     init_ack = false;
 
     // sends syn packet
@@ -88,7 +85,8 @@ int main(int argc, char *argv[])
     header.flags = F_SYN;
     simpleTCP syn_packet = simpleTCP(header, "", 0);
     seq_num++; // increment seq_num by 1 since 0 payload (not sure if this is right)
-    if (sendto(sockfd, (void *)&syn_packet, sizeof(syn_packet), 0, server_addr, &server_addr_length == -1))
+    if (sendto(sockfd, (void *)&syn_packet, syn_packet.getSegmentSize(), 0,
+               server_addr, server_addr_length) == -1)
     {
         perror("sendto() error in client while sending SYN");
     }
@@ -100,22 +98,27 @@ int main(int argc, char *argv[])
         fd_set listening_socket;
         FD_ZERO(&listening_socket);
         FD_SET(sockfd, &listening_socket);
-        // implements timeout - don't use select(), it can change timeout
-        if (pselect(sockfd + 1, &listening_socket, NULL, NULL, &timeout, NULL) > 0)
+        struct timeval timeout;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = INIT_RTO * 1000;
+
+        if (select(sockfd + 1, &listening_socket, NULL, NULL, &timeout) > 0)
         {
-            if (nbytes = recvfrom(sockfd, (void *)&recv_packet, sizeof(recv_packet), 0, (struct sockaddr *)&server_addr, &server_addr_length) == -1)
+            if ((nbytes = recvfrom(sockfd, (void *)&recv_packet, recv_packet.getSegmentSize(), 0,
+                                   server_addr, &server_addr_length)) == -1)
             {
                 perror("recvfrom() error in client while processing SYN-ACK/SYN");
             }
             else
             {
                 init_ack = recv_packet.getACK() && recv_packet.getSYN();
-                ack_num = (recv_packet.seq_num + 1) % MAX_SEQ_NUM;
+                ack_num = (recv_packet.getSeqNum() + 1) % MAX_SEQ_NUM;
             }
         }
         else
         {
-            if (sendto(sockfd, (void *)&syn_packet, sizeof(syn_packet), 0, server_addr, &server_addr_length == -1))
+            if (sendto(sockfd, (void *)&syn_packet, syn_packet.getSegmentSize(), 0,
+                       server_addr, server_addr_length) == -1)
             {
                 perror("sendto() error in client while sending SYN");
             }
@@ -127,9 +130,10 @@ int main(int argc, char *argv[])
     header.ack_num = ack_num;
     header.window = cong_window;
     header.flags = F_ACK;
-    simpleTCP syn_packet = simpleTCP(header, "", 0);
+    syn_packet = simpleTCP(header, "", 0);
     seq_num++; // increment seq_num by 1 since 0 payload (not sure if this is right)
-    if (sendto(sockfd, (void *)&syn_packet, sizeof(syn_packet), 0, server_addr, &server_addr_length == -1))
+    if (sendto(sockfd, (void *)&syn_packet, sizeof(syn_packet), 0,
+               server_addr, server_addr_length) == -1)
     {
         perror("sendto() error in client while sending ACK");
     }
