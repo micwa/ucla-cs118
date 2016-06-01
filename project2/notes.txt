@@ -1,0 +1,57 @@
+Client
+========
+
+parse arguments into host/port
+getaddrinfo() for easy interface with next two functions
+  UDP in IPv4
+socket() to create socket
+  setsockopt() for socket stuff
+connect() to connect to server
+
+Initiate Syn Handshake
+  Send a SYN packet to server
+  Accept a SYN-ACK/SYN packet from server
+    if response does not come within timeout, then resend SYN packet
+  Send a ACK packet to server
+    With successful transmission output message
+      if retransmission then output that it is a retransmission
+
+Accept data packets until it fulfills filesize  
+
+Accept FIN
+
+Server
+========
+
+parse arguments into port/file
+getaddrinfo() for easy interface with next two functions
+  UDP in IPv4
+socket() to create socket
+  setsockopt() for socket stuff
+bind() to bind a port
+
+Start infinite loop (server always on)
+Accept Syn Handshake, blocking until one is detected
+  recvfrom blocks until it receives a SYN packet
+  then sends a SYN-ACK/SYN packet
+    waits for a ACK packet, if not received within timeout then resend
+
+Sends data packets until entire file is sent
+  packets always send 1024 bytes of data, even if they may not all be used
+
+Initiates Fin connection teardown
+
+simpleTCP (packet construction)
+========
+Packet header
+  sequence number
+  acknowledgement number
+  congestion window
+  flags
+    13 0 bits followed by ACK flag, SYN flag, FIN flag
+Packet Payload
+  always 1024 bytes used for payload, even if there is no message
+    therefore size of packet is always 1032
+    however we cannot assume this fact for client, use sizeof(packet) - 8
+  m_payload_size contains the portion of the message that is actually used
+
