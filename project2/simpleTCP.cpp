@@ -6,7 +6,7 @@ simpleTCP::simpleTCP()
 {}
 
 simpleTCP::simpleTCP(simpleHeader header, const char *message, int size)
-    : m_header(header), m_size(size)
+    : m_header(header)
 {
     memcpy(m_payload, message, size);
 }
@@ -98,7 +98,7 @@ int simpleTCP::getHeaderSize() const
 
 int simpleTCP::getPayloadSize() const
 {
-    return m_size;
+    return sizeof(m_payload);
 }
 
 int simpleTCP::getSegmentSize() const
