@@ -20,8 +20,7 @@ void ntohPacket(simpleTCP& packet);
 simpleTCP makePacket_ton(uint16_t seq_num, uint16_t ack_num, uint16_t window, uint16_t flags,
                          const char *message, int size);
 
-void sendAckPacket(uint16_t seq_num, uint16_t ack_num, uint16_t window, uint16_t flags,
-                   const char *message, int size, const struct sockaddr server_addr,
-                   socklen_t server_addr_length);
+void sendAckPacket(simpleTCP ack_packet, const struct sockaddr *server_addr,
+                   socklen_t server_addr_length, simpleTCP recv_packet, bool *retransmission);
 
 #endif

@@ -3,6 +3,7 @@
 #include <string>
 #include <iostream>
 #include <thread>
+#include <chrono>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -68,60 +69,73 @@ int main(int argc, char *argv[])
     int seq_num, ack_num, cong_window;
     simpleTCP recv_packet;
     int nbytes;
-    bool init_ack;
+    bool retransmission = false;
     
     srand(time(NULL));
     seq_num = rand() % MAX_SEQ_NUM; // random initial sequence number
     ack_num = 0; // initally unusued
     cong_window = INIT_CONG_SIZE; // clients don't need congestion window, so this can be ignored
-    init_ack = false;
 
-    // sends syn packet
-    simpleTCP syn_packet = makePacket_ton(seq_num, ack_num, cong_window, F_SYN, "", 0);
-    seq_num++; // increment seq_num by 1
-    if (sendto(sockfd, (void *)&syn_packet, syn_packet.getSegmentSize(), 0,
-               server_addr, server_addr_length) == -1)
-    {
-        perror("sendto() error in client while sending SYN");
-    }
+    simpleTCP lastAckPacket;
     
-    // receives syn-ack packet, resending syn if not received in time
-    
-    while (!init_ack)
+    while (true)
     {
+        
+        // sends syn packet
+        simpleTCP syn_packet = makePacket_ton(seq_num, ack_num, cong_window, F_SYN, "", 0);
+        if (sendto(sockfd, (void *)&syn_packet, syn_packet.getSegmentSize(), 0,
+                   server_addr, server_addr_length) == -1)
+        {
+            perror("sendto() error in client while sending SYN");
+            usleep(timeout.tv_usec + timeout.tv_sec * 1000000);
+            continue;
+        }
+        
+        // receives syn-ack packet, resending syn if not received in time
+        
         fd_set listening_socket;
         FD_ZERO(&listening_socket);
         FD_SET(sockfd, &listening_socket);
+        
         struct timeval timeout;
         timeout.tv_sec = 0;
         timeout.tv_usec = INIT_RTO * 1000;
-
         if (select(sockfd + 1, &listening_socket, NULL, NULL, &timeout) > 0)
         {
             if ((nbytes = recvfrom(sockfd, (void *)&recv_packet, recv_packet.getSegmentSize(), 0,
-                                   server_addr, &server_addr_length)) == -1)
+                                    server_addr, &server_addr_length)) == -1)
             {
                 perror("recvfrom() error in client while processing SYN-ACK/SYN");
+                usleep(timeout.tv_usec + timeout.tv_sec * 1000000);
+                continue;
             }
             else
             {
-                init_ack = recv_packet.getACK() && recv_packet.getSYN();
-                ack_num = (recv_packet.getSeqNum() + 1) % MAX_SEQ_NUM;
+                ntohPacket(recv_packet);
+                if (recv_packet.getACK() && recv_packet.getSYN())
+                {
+                    ack_num = (recv_packet.getSeqNum() + 1) % MAX_SEQ_NUM;
+                }
+                else
+                {
+                    usleep(timeout.tv_usec + timeout.tv_sec * 1000000);
+                    continue;
+                }
             }
         }
         else
         {
-            if (sendto(sockfd, (void *)&syn_packet, syn_packet.getSegmentSize(), 0,
-                       server_addr, server_addr_length) == -1)
-            {
-                perror("sendto() error in client while sending SYN");
-            }
+            continue;
         }
-    }
-    
-    // sends ack packet
-    sendAckPacket(seq_num, ack_num, cong_window, F_ACK, "", 0, server_addr, server_addr_length);
-    
+        seq_num++; // increment seq_num by 1
+        
+        // sends ack packet
+        
+        simpleTCP ack_packet = makePacket_ton(seq_num, ack_num, cong_window, F_ACK, "", 0);
+        sendAckPacket(ack_packet, server_addr, server_addr_length, *retransmission);
+        lastAckPacket = ack_packet;
+        break;
+    }    
     
     // file stuff and fin/fin-ack/ack stuff here
     

@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
     int nbytes;
     bool init_syn, init_ack;
     
-    for (;;)
+    while (true)
     {
         srand(time(NULL));
         seq_num = rand() % MAX_SEQ_NUM; // random initial sequence number

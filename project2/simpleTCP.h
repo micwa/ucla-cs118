@@ -19,6 +19,7 @@ class simpleTCP
 private:
     simpleHeader m_header;
     char m_payload[MAX_PAYLOAD];
+    int m_size;
 public:
     simpleTCP();
     simpleTCP(simpleHeader header, const char *message, int size);

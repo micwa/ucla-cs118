@@ -59,24 +59,21 @@ simpleTCP makePacket_ton(uint16_t seq_num, uint16_t ack_num, uint16_t window, ui
 }
 
 // sends ack packet (for client)
-void sendAckPacket(uint16_t seq_num, uint16_t ack_num, uint16_t window, uint16_t flags,
-                   const char *message, int size, const struct sockaddr server_addr,
-                   socklen_t server_addr_length, simpleTCP recv_packet)
+void sendAckPacket(simpleTCP ack_packet, const struct sockaddr *server_addr,
+                   socklen_t server_addr_length, simpleTCP recv_packet, bool *retransmission)
 {
     ntohPacket(recv_packet);
-    bool retransmission = false;
-    simpleTCP ack_packet = makePacket_ton(seq_num, ack_num, cong_window, F_ACK, "", 0);
     if (sendto(sockfd, (void *)&ack_packet, sizeof(ack_packet), 0,
-               server_addr, server_addr_length) == -1)
+               *server_addr, server_addr_length) == -1)
     {
         perror("sendto() error in client while sending ACK");
     }
     else
     {
-        if (!retransmission)
+        if (!(*retransmission))
         {
             cout << "Sending ACK packet " << recv_packet.getAckNum() << endl;
-            retransmission = true;
+            *retransmission = true;
         }
         else
         {
