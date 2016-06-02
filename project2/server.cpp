@@ -73,7 +73,6 @@ int main(int argc, char *argv[])
     simpleTCP recv_packet;
     struct sockaddr_in client_addr;
     socklen_t client_addr_length = sizeof(client_addr);
-    struct simpleHeader header;
     int nbytes;
     bool init_syn, init_ack;
     
@@ -95,18 +94,15 @@ int main(int argc, char *argv[])
             }
             else
             {
+                ntohPacket(recv_packet);
                 init_syn = recv_packet.getSYN();
-                ack_num = (seq_num + 1) % MAX_SEQ_NUM; // payload is 0 bytes, but can't do + 0
+                ack_num = (seq_num + 1) % MAX_SEQ_NUM;
             }
         }
 
         // sends syn-ack packet
-        header.seq_num = seq_num;
-        header.ack_num = ack_num;
-        header.window = cong_window;
-        header.flags = F_SYN | F_ACK;
-        simpleTCP synack_packet = simpleTCP(header, "", 0);
-        seq_num++; // increment seq_num by 1 since 0 payload (not sure if this is right)
+        simpleTCP synack_packet = makePacket_ton(seq_num, ack_num, cong_window, F_SYN | F_ACK, "", 0);
+        seq_num = (seq_num + 1) % MAX_SEQ_NUM; 
         if (sendto(sockfd, (void *)&synack_packet, synack_packet.getSegmentSize(), 0,
                    (struct sockaddr *)&client_addr, client_addr_length) == -1)
         {
@@ -133,8 +129,8 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
+                    ntohPacket(recv_packet);
                     init_ack = recv_packet.getACK();
-                    ack_num = (recv_packet.getSeqNum() + 1) % MAX_SEQ_NUM; 
                     cout << "Receiving ACK packet " << recv_packet.getAckNum() << endl;
                 }
             }
