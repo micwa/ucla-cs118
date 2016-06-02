@@ -67,10 +67,8 @@ int main(int argc, char *argv[])
     
     int seq_num, ack_num, cong_window;
     simpleTCP recv_packet;
-    struct simpleHeader header;
     int nbytes;
     bool init_ack;
-    bool retransmission = false;
     
     srand(time(NULL));
     seq_num = rand() % MAX_SEQ_NUM; // random initial sequence number
@@ -79,12 +77,8 @@ int main(int argc, char *argv[])
     init_ack = false;
 
     // sends syn packet
-    header.seq_num = seq_num;
-    header.ack_num = ack_num;
-    header.window = cong_window;
-    header.flags = F_SYN;
-    simpleTCP syn_packet = simpleTCP(header, "", 0);
-    seq_num++; // increment seq_num by 1 since 0 payload (not sure if this is right)
+    simpleTCP syn_packet = makePacket_ton(seq_num, ack_num, cong_window, F_SYN, "", 0);
+    seq_num++; // increment seq_num by 1
     if (sendto(sockfd, (void *)&syn_packet, syn_packet.getSegmentSize(), 0,
                server_addr, server_addr_length) == -1)
     {
@@ -126,29 +120,8 @@ int main(int argc, char *argv[])
     }
     
     // sends ack packet
-    header.seq_num = seq_num;
-    header.ack_num = ack_num;
-    header.window = cong_window;
-    header.flags = F_ACK;
-    syn_packet = simpleTCP(header, "", 0);
-    seq_num++; // increment seq_num by 1 since 0 payload (not sure if this is right)
-    if (sendto(sockfd, (void *)&syn_packet, sizeof(syn_packet), 0,
-               server_addr, server_addr_length) == -1)
-    {
-        perror("sendto() error in client while sending ACK");
-    }
-    else
-    {
-        if (!retransmission)
-        {
-            cout << "Sending ACK packet " << recv_packet.getAckNum() << endl;
-            retransmission = true;
-        }
-        else
-        {
-            cout << "Sending ACK packet " << recv_packet.getAckNum() << " Retransmission" << endl;
-        }
-    }
+    sendAckPacket(seq_num, ack_num, cong_window, F_ACK, "", 0, server_addr, server_addr_length);
+    
     
     // file stuff and fin/fin-ack/ack stuff here
     
