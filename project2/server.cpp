@@ -5,6 +5,9 @@
 #include <fstream>
 #include <thread>
 #include <chrono>
+#include <queue>
+#include <map>
+#include <algorithm>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -71,19 +74,17 @@ int main(int argc, char *argv[])
             errorAndExit("No connection possible for host: " + host);
     }
     
-    int seq_num, ack_num, cong_window;
+    int seq_num, ack_num, cong_window, ssthresh, nbytes, queue_size;
     simpleTCP recv_packet;
     struct sockaddr client_addr;
     socklen_t client_addr_length = sizeof(client_addr);
-    int nbytes;
-    bool init_syn, data_left;
+    bool init_syn, data_left_to_read, data_left_to_send;
     
     srand(time(NULL));
     seq_num = 0;//rand() % MAX_SEQ_NUM; // random initial sequence number
     cong_window = INIT_CONG_SIZE;
+    ssthresh = INIT_SLOWSTART;
     init_syn = false;
-    
-    cout << "about to receive syn packet" << endl;
     
     // receives syn packet
     while (!init_syn)
@@ -97,16 +98,14 @@ int main(int argc, char *argv[])
         {
             ntohPacket(recv_packet);
             init_syn = recv_packet.getSYN();
-            ack_num = (seq_num + 1) % MAX_SEQ_NUM;
+            ack_num = (recv_packet.getSeqNum() + 1) % MAX_SEQ_NUM;
         }
     }
     
     while (true)
     {
-        cout << "sending syn-ack packet" << endl;
         // sends syn-ack packet
         simpleTCP synack_packet = makePacket_ton(seq_num, ack_num, cong_window, F_SYN | F_ACK, "", 0);
-        seq_num = (seq_num + 1) % MAX_SEQ_NUM; 
         if (sendto(sockfd, (void *)&synack_packet, synack_packet.getSegmentSize(), 0,
                    (struct sockaddr *)&client_addr, client_addr_length) == -1)
         {
@@ -146,10 +145,136 @@ int main(int argc, char *argv[])
         }
     }
     
-    data_left = true;
-    /*
-    while (data_left)
+    seq_num = (seq_num + 1) % MAX_SEQ_NUM;
+    
+    // Data delivery
+    
+    data_left_to_read = true;
+    data_left_to_send = true;
+    
+    queue<simpleTCP> unAckedQueue;
+    queue_size = 0;
+    
+    map<unsigned long long::simpleTCP> timeSent;
+    
+    ofstream ofs;
+    ofs.open(filename, fstream::out);
+    
+    char packet_buf[MAX_PAYLOAD];
+    int payload_size;
+    bool already_read_buf = false; // there's probably a better way to implement this logic
+    int same_ack_count = 0;
+    
+    while (data_left_to_send)
     {
+        int real_window = min(cong_window, recv_packet.getWindow()); 
+        while (data_left_to_read) // loop is exited when there is no more to read OR when too much sent for window
+        {
+            if (!already_read_buf)
+            {
+                ofs.read(packet_buf, MAX_PAYLOAD);
+                if (ofs.eof())
+                {
+                    payload_size = ofs.gcount() % MAX_PAYLOAD;
+                    data_left_to_read = false;
+                    ofs.close();
+                }
+                else
+                {
+                    payload_size = MAX_PAYLOAD;
+                }
+            }
+            else
+            {
+                already_read_buf = false;
+            }
+            
+            if (real_window < payload_size + queue_size)
+            {
+                already_read_buf = true;
+                break;
+            }
+            else
+            {
+                simpleTCP data_packet = makePacket_ton(seq_num, ack_num, cong_window, 0, packet_buf, payload_size);
+                unAckedQueue(data_packet);
+                queue_size += payload_size;
+                struct timeval cur_time;
+                gettimeofday(cur_time, NULL);
+                unsigned long long microsec_time = cur_time.tv_sec * 1000000 + cur_time.tv_usec;
+                timeSent[microsec_time] = data_packet;
+                if (sendto(sockfd, (void *)&data_packet, data_packet.getSegmentSize(), 0,
+                       client_addr, client_addr_length)) == -1)
+                {                    
+                    perror("sendto() error in server while sending data");
+                }
+                else
+                {
+                    cout << "Sending data packet " << seq_num << " " << cong_window << " " << ssthresh << endl;
+                }
+                seq_num = (seq_num + payload_size) % MAX_SEQ_NUM;
+            }
+        }
         
-    }*/
+        if ((nbytes = recv(sockfd, (void *)&recv_packet, MAX_SEGMENT_SIZE, 0)) == -1)
+        {
+            perror("recv() error in server while processing ACK");
+        }
+        else
+        {
+            ntohPacket(recv_packet);
+            if(recv_packet.getACK())
+            {
+                cout << "Receiving ACK packet " << recv_packet.getAckNum() << endl;
+                break;
+            }
+        }
+        
+        if () // timeout
+        else if () // three dup acks - Reno
+        
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
