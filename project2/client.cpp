@@ -55,8 +55,8 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
         packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_SYN, "", 0);
         assert(packet.getSegmentSize() == 8);
 
-        if (sendto(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
-                   server_addr, server_addr_length) == -1)
+        if (!sendAll(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
+                   server_addr, server_addr_length))
         {
             perror("sendto() error in client while sending SYN");
             sleepTimeout();
@@ -196,8 +196,8 @@ static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_
         packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK|F_SYN, "", 0);
         assert(packet.getSegmentSize() == 8);
 
-        if (sendto(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
-                   server_addr, server_addr_length) == -1)
+        if (!sendAll(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
+                     server_addr, server_addr_length))
         {
             perror("sendto() error in client while sending FIN/ACK");
             sleepTimeout();
