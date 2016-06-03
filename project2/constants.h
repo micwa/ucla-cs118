@@ -6,11 +6,15 @@ const int MAX_PAYLOAD = 1024;
 const int F_ACK = 0x4;
 const int F_SYN = 0x2;
 const int F_FIN = 0x1;
+const int MAX_SEGMENT_SIZE = 1032;
 
-// Congestion control/timers
+// Congestion/flow control
+const int RECV_WINDOW = 30720;
 const int MAX_PACKET_LENGTH = 1032;
 const int MAX_SEQ_NUM = 30720;
 const int INIT_CONG_SIZE = 1024;
+
+// Timers
 const int INIT_SLOWSTART = 1024;
 const int INIT_RTO = 500; // ms
 
