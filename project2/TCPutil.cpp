@@ -63,18 +63,17 @@ int sendAck(int sockfd, const struct sockaddr *server_addr, socklen_t server_add
             simpleTCP& ack_packet, bool retransmission)
 {
     int res;
+
     assert(ack_packet.getSegmentSize() == 8);
+    cout << "Sending ACK packet " << ack_packet.getAckNum();
+    if (retransmission)
+        cout << " Retransmission";
+    cout << endl;
+
     if ((res = sendto(sockfd, (void *)&ack_packet, ack_packet.getSegmentSize(), 0,
                server_addr, server_addr_length)) == -1)
     {
         perror("sendto() error in client while sending ACK");
-    }
-    else
-    {
-        cout << "Sending ACK packet " << ack_packet.getAckNum();
-        if (retransmission)
-            cout << " Retransmission";
-        cout << endl;
     }
     return res;
 }

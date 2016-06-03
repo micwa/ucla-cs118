@@ -166,7 +166,6 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
             else        // Malformed packet (or none)
             {
                 _ERROR("Receiving data packet");
-                sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
             }
         }
         else            // Timeout
@@ -248,19 +247,19 @@ int main(int argc, char *argv[])
     int port = atoi(argv[2]);
 
     int sockfd;
+    struct addrinfo *server_addr_info = NULL, *addr;
     struct sockaddr *server_addr;
     socklen_t server_addr_length;
 
     // Connect to server and store connection (addrinfo) information
     {
-        struct addrinfo *servAddr = NULL, *addr;
         int status;
 
-        if ((status = getIpv4(host, port, &servAddr)) != 0)
+        if ((status = getIpv4(host, port, &server_addr_info)) != 0)
             errorAndExit(string("getaddrinfo: ") + gai_strerror(status));
         
         // Try all IPs
-        for (addr = servAddr; addr != NULL; addr = addr->ai_next)
+        for (addr = server_addr_info; addr != NULL; addr = addr->ai_next)
         {
             if ((sockfd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol)) == -1)
             {
@@ -284,6 +283,7 @@ int main(int argc, char *argv[])
 
     teardown(sockfd, server_addr, server_addr_length);
 
+    freeaddrinfo(server_addr_info);
     _DEBUG("Client exiting");
     return 0;
 }
