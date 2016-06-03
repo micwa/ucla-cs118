@@ -21,6 +21,7 @@
 
 using namespace std;
 
+
 static void errorAndExit(const string& msg)
 {
     cerr << msg << endl;
@@ -32,6 +33,12 @@ static int seq_num = 0;
 static int ack_num = 0;
 static int rto = INIT_RTO * 1000;
 
+static void sleepTimeout()
+{
+    _DEBUG("Sleeping for: " + to_string(rto / 1000) + " microseconds");
+    usleep(rto);
+}
+
 // HANDSHAKE:
 // - send SYN; if not successful, wait and continue
 // - receive SYN/ACK; if not received, wait and continue
@@ -39,27 +46,24 @@ static int rto = INIT_RTO * 1000;
 // Returns the last ACK packet sent.
 static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t server_addr_length)
 {
-    int nbytes;
     simpleTCP packet;
 
     while (true)
     {
         // Send SYN
-        _DEBUG("Sending SYN packet");
-
+        cout << "Sending SYN packet" << endl;
         packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_SYN, "", 0);
         assert(packet.getSegmentSize() == 8);
+
         if (sendto(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
                    server_addr, server_addr_length) == -1)
         {
             perror("sendto() error in client while sending SYN");
-            usleep(rto);
+            sleepTimeout();
             continue;
         }
 
         // Receive SYN/ACK packet
-        _DEBUG("Receiving SYN/ACK packet");
-
         fd_set listening_socket;
         FD_ZERO(&listening_socket);
         FD_SET(sockfd, &listening_socket);
@@ -69,27 +73,25 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
         
         if (select(sockfd + 1, &listening_socket, NULL, NULL, &timeout) > 0)
         {
-            nbytes = recvPacket(sockfd, packet, server_addr, &server_addr_length);
-            ntohPacket(packet);
+            int nbytes = recvPacket_toh(sockfd, packet, server_addr, &server_addr_length);
+            cout << "Receiving SYN/ACK packet" << endl;
 
             // Packet must have at least a header and be SYN/ACK
             if (nbytes < packet.getHeaderSize() || !packet.getACK() || !packet.getSYN())
             {
                 perror("recvfrom() error in client while receiving SYN/ACK");
-                usleep(rto);
+                sleepTimeout();
                 continue;
             }
         }
         else
         {
             _DEBUG("Timeout receiving SYN/ACK packet");
-            usleep(rto);
+            sleepTimeout();
             continue;
         }
         
         // Send ACK packet
-        _DEBUG("Sending ACK packet");
-
         ack_num = (packet.getSeqNum() + 1) % MAX_SEQ_NUM;
         seq_num = (seq_num + 1) % MAX_SEQ_NUM;
 
@@ -101,7 +103,7 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
 
 static bool isValidSeq(int a, int b)
 {
-    if (b - a <= MAX_SEQ_NUM/2 || b - a + MAX_SEQ_NUM <= MAX_SEQ_NUM/2)
+    if (b - a + 1 <= MAX_SEQ_NUM/2 || b - a + 1 + MAX_SEQ_NUM <= MAX_SEQ_NUM/2)
         return true;
     return false;
 }
@@ -114,7 +116,6 @@ static bool isValidSeq(int a, int b)
 static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t server_addr_length,
                         simpleTCP last_ack_packet)
 {
-    int nbytes;
     simpleTCP packet;
     ofstream ofs("out.data");
 
@@ -132,24 +133,28 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
         
         if (select(sockfd + 1, &listening_socket, NULL, NULL, &timeout) > 0)
         {
-            nbytes = recvPacket(sockfd, packet, server_addr, &server_addr_length);
-            ntohPacket(packet);
+            int nbytes = recvPacket_toh(sockfd, packet, server_addr, &server_addr_length);
+            int packet_seq = packet.getSeqNum();
+            cout << "Receiving data packet " << packet_seq << endl;
 
             // Packet must have at least a header and an ACK
             if (nbytes >= packet.getHeaderSize() && packet.getACK())
             {
-                if (packet.getSeqNum() == ack_num)  // In-order packet
+                if (packet_seq == ack_num)  // In-order packet
                 {
-                    ack_num = (ack_num + packet.getPayloadSize()) % MAX_SEQ_NUM;
-                    packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK, "", 0);
-                    last_ack_packet = packet;
-                    sendAck(sockfd, server_addr, server_addr_length, packet, false);
-
                     ofs.write(packet.getMessage(), packet.getPayloadSize());
+
+                    ack_num = (ack_num + packet.getPayloadSize()) % MAX_SEQ_NUM;
+                    if (packet.getFIN())
+                        ack_num = (ack_num + 1) % MAX_SEQ_NUM;
+
+                    last_ack_packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK, "", 0);
+                    sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, false);
+
                     if (packet.getFIN())
                         break;
                 }
-                else if (isValidSeq(ack_num, packet.getSeqNum()))   // Old packet
+                else if (isValidSeq(ack_num, packet_seq))   // Old packet
                 {
                     sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
                 }
@@ -171,6 +176,65 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
         }
     }
     ofs.close();
+}
+
+// TEARDOWN:
+// - send FIN/ACK
+// - receive ACK; if timeout or invalid, continue; else break
+static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_addr_length)
+{
+    simpleTCP packet;
+    bool retransmission = false;
+
+    while (true)
+    {
+        // Send FIN/ACK
+        cout << "Sending SYN/ACK packet " << ack_num;
+        if (retransmission)
+            cout << " Retransmission";
+        cout << endl;
+        retransmission = true;
+        packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK|F_SYN, "", 0);
+        assert(packet.getSegmentSize() == 8);
+
+        if (sendto(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
+                   server_addr, server_addr_length) == -1)
+        {
+            perror("sendto() error in client while sending FIN/ACK");
+            sleepTimeout();
+            continue;
+        }
+
+        // Receive ACK
+        fd_set listening_socket;
+        FD_ZERO(&listening_socket);
+        FD_SET(sockfd, &listening_socket);
+        struct timeval timeout;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = rto;
+        
+        if (select(sockfd + 1, &listening_socket, NULL, NULL, &timeout) > 0)
+        {
+            int nbytes = recvPacket_toh(sockfd, packet, server_addr, &server_addr_length);
+            cout << "Receiving ACK packet " << packet.getAckNum() << endl;
+
+            // Packet must have proper sequence number and ACK set
+            if (nbytes < packet.getHeaderSize() || !packet.getACK() ||
+                packet.getSeqNum() != ack_num)
+            {
+                _DEBUG("Invalid packet received");
+                continue;
+            }
+        }
+        else            // Timeout
+        {
+            _DEBUG("Timeout receiving ACK packet");
+            continue;
+        }
+
+        // Everything OK
+        break;
+    }
 }
 
 int main(int argc, char *argv[])
@@ -218,5 +282,8 @@ int main(int argc, char *argv[])
 
     receiveFile(sockfd, server_addr, server_addr_length, last_ack_packet);
 
-    // TEARDOWN:
+    teardown(sockfd, server_addr, server_addr_length);
+
+    _DEBUG("Client exiting");
+    return 0;
 }
