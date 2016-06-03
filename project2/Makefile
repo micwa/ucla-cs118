@@ -1,7 +1,7 @@
 CXX=g++
 CXXOPTIMIZE= -O2
 CXXFLAGS= -g -Wall -Wpedantic -Wextra -Wshadow -pthread -std=c++11 $(CXXOPTIMIZE)
-USERID=204458659
+USERID=904469956, 204458659
 
 # Add all .cpp files that need to be compiled for your server
 SERVER_FILES=server.cpp \

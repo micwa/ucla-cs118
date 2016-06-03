@@ -76,10 +76,16 @@ int main(int argc, char *argv[])
     ack_num = 0; // initally unusued
     cong_window = INIT_CONG_SIZE; // clients don't need congestion window, so this can be ignored
 
-    simpleTCP lastAckPacket;
+    simpleTCP last_ack_packet;
     
     while (true)
     {
+        
+        struct timeval timeout;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = INIT_RTO * 1000;
+        
+        cout << "sending syn packet" << endl;
         
         // sends syn packet
         simpleTCP syn_packet = makePacket_ton(seq_num, ack_num, cong_window, F_SYN, "", 0);
@@ -91,15 +97,14 @@ int main(int argc, char *argv[])
             continue;
         }
         
+        cout << "receiving syn-ack packet" << endl;
+        
         // receives syn-ack packet, resending syn if not received in time
         
         fd_set listening_socket;
         FD_ZERO(&listening_socket);
         FD_SET(sockfd, &listening_socket);
         
-        struct timeval timeout;
-        timeout.tv_sec = 0;
-        timeout.tv_usec = INIT_RTO * 1000;
         if (select(sockfd + 1, &listening_socket, NULL, NULL, &timeout) > 0)
         {
             if ((nbytes = recvfrom(sockfd, (void *)&recv_packet, recv_packet.getSegmentSize(), 0,
@@ -131,9 +136,10 @@ int main(int argc, char *argv[])
         
         // sends ack packet
         
+        
         simpleTCP ack_packet = makePacket_ton(seq_num, ack_num, cong_window, F_ACK, "", 0);
-        sendAckPacket(ack_packet, server_addr, server_addr_length, *retransmission);
-        lastAckPacket = ack_packet;
+        sendAckPacket(ack_packet, sockfd, server_addr, server_addr_length, recv_packet, &retransmission);
+        last_ack_packet = ack_packet;
         break;
     }    
     
