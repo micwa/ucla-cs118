@@ -79,13 +79,14 @@ int sendAck(int sockfd, const struct sockaddr *server_addr, socklen_t server_add
     return res;
 }
 
-int recvPacket(int sockfd, simpleTCP& packet, struct sockaddr *server_addr, socklen_t *server_addr_length)
+int recvPacket_toh(int sockfd, simpleTCP& packet, struct sockaddr *server_addr, socklen_t *server_addr_length)
 {
     int nbytes = recvfrom(sockfd, (void *)&packet, MAX_SEGMENT_SIZE, 0,
                           server_addr, server_addr_length);
     int payload_size = nbytes - packet.getHeaderSize();
     if (payload_size >= 0)
         packet.setPayloadSize(payload_size);
+    ntohPacket(packet);
 
     return nbytes;
 }

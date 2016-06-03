@@ -27,6 +27,6 @@ int sendAck(int sockfd, const struct sockaddr *server_addr, socklen_t server_add
 
 // Receive MAX_SEGMENT_SIZE bytes into the given packet, and set its payload size.
 // Returns the return value of recvfrom().
-int recvPacket(int sockfd, simpleTCP& packet, struct sockaddr *server_addr, socklen_t *server_addr_length);
+int recvPacket_toh(int sockfd, simpleTCP& packet, struct sockaddr *server_addr, socklen_t *server_addr_length);
 
 #endif
