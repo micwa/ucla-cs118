@@ -20,7 +20,13 @@ void ntohPacket(simpleTCP& packet);
 simpleTCP makePacket_ton(uint16_t seq_num, uint16_t ack_num, uint16_t window, uint16_t flags,
                          const char *message, int size);
 
-void sendAckPacket(simpleTCP ack_packet, int sockfd, const struct sockaddr *server_addr,
-                   socklen_t server_addr_length, simpleTCP recv_packet, bool *retransmission);
+// Send an ACK packet (printing out the ACK number) and returns the result of sendto().
+// FOR CLIENT
+int sendAck(int sockfd, const struct sockaddr *server_addr, socklen_t server_addr_length,
+            simpleTCP& ack_packet, bool retransmission);
+
+// Receive MAX_SEGMENT_SIZE bytes into the given packet, and set its payload size.
+// Returns the return value of recvfrom().
+int recvPacket(int sockfd, simpleTCP& packet, struct sockaddr *server_addr, socklen_t *server_addr_length);
 
 #endif

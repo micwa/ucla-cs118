@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -58,28 +59,33 @@ simpleTCP makePacket_ton(uint16_t seq_num, uint16_t ack_num, uint16_t window, ui
     return packet;
 }
 
-// sends ack packet (for client)
-void sendAckPacket(simpleTCP ack_packet, int sockfd, const struct sockaddr *server_addr,
-                   socklen_t server_addr_length, simpleTCP recv_packet, bool *retransmission)
+int sendAck(int sockfd, const struct sockaddr *server_addr, socklen_t server_addr_length,
+            simpleTCP& ack_packet, bool retransmission)
 {
-    ntohPacket(recv_packet);
-    if (sendto(sockfd, (void *)&ack_packet, sizeof(ack_packet), 0,
-               server_addr, server_addr_length) == -1)
+    int res;
+    assert(ack_packet.getSegmentSize() == 8);
+    if ((res = sendto(sockfd, (void *)&ack_packet, ack_packet.getSegmentSize(), 0,
+               server_addr, server_addr_length)) == -1)
     {
         perror("sendto() error in client while sending ACK");
     }
     else
     {
-        if (!(*retransmission))
-        {
-            htonPacket(recv_packet);
-            cout << "Sending ACK packet " << recv_packet.getAckNum() << endl;
-            *retransmission = true;
-        }
-        else
-        {
-            cout << "Sending ACK packet " << recv_packet.getAckNum() << " Retransmission" << endl;
-        }
+        cout << "Sending ACK packet " << ack_packet.getAckNum();
+        if (retransmission)
+            cout << " Retransmission";
+        cout << endl;
     }
+    return res;
 }
 
+int recvPacket(int sockfd, simpleTCP& packet, struct sockaddr *server_addr, socklen_t *server_addr_length)
+{
+    int nbytes = recvfrom(sockfd, (void *)&packet, MAX_SEGMENT_SIZE, 0,
+                          server_addr, server_addr_length);
+    int payload_size = nbytes - packet.getHeaderSize();
+    if (payload_size >= 0)
+        packet.setPayloadSize(payload_size);
+
+    return nbytes;
+}
