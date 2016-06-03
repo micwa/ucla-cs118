@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 
 #include "TCPutil.h"
+#include "logerr.h"
 
 using namespace std;
 
@@ -59,23 +60,42 @@ simpleTCP makePacket_ton(uint16_t seq_num, uint16_t ack_num, uint16_t window, ui
     return packet;
 }
 
-int sendAck(int sockfd, const struct sockaddr *server_addr, socklen_t server_addr_length,
-            simpleTCP& ack_packet, bool retransmission)
-{
-    int res;
+/* NETWORK-RELATED */
 
+bool sendAll(int sockfd, const void *buf, size_t length, int flags,
+             const struct sockaddr *dest_addr, socklen_t dest_len)
+{
+    size_t total = 0;
+    size_t bytesLeft = length;
+
+    while (total < length)
+    {
+        int sent = sendto(sockfd, (const char*)buf + total, bytesLeft, flags, dest_addr, dest_len);
+        if (sent == -1)
+            return false;
+        total += sent;
+        bytesLeft -= sent;
+    }
+    _DEBUG("Total sent: " + to_string(total) + " bytes");
+    return true;
+}
+
+bool sendAck(int sockfd, const struct sockaddr *server_addr, socklen_t server_addr_length,
+             simpleTCP& ack_packet, bool retransmission)
+{
     assert(ack_packet.getSegmentSize() == 8);
     cout << "Sending ACK packet " << ack_packet.getAckNum();
     if (retransmission)
         cout << " Retransmission";
     cout << endl;
 
-    if ((res = sendto(sockfd, (void *)&ack_packet, ack_packet.getSegmentSize(), 0,
-               server_addr, server_addr_length)) == -1)
+    if (!sendAll(sockfd, (void *)&ack_packet, ack_packet.getSegmentSize(), 0,
+                 server_addr, server_addr_length))
     {
         perror("sendto() error in client while sending ACK");
+        return false;
     }
-    return res;
+    return true;
 }
 
 int recvPacket_toh(int sockfd, simpleTCP& packet, struct sockaddr *server_addr, socklen_t *server_addr_length)
