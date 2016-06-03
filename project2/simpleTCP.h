@@ -32,6 +32,7 @@ public:
     void setSYN();
     void setFIN();
     void setMessage(const char *message, int size);
+    void setPayloadSize(int size);
     uint16_t getSeqNum() const;
     uint16_t getAckNum() const;
     uint16_t getWindow() const;

@@ -52,6 +52,11 @@ void simpleTCP::setMessage(const char *message, int size)
     m_size = size;
 }
 
+void simpleTCP::setPayloadSize(int size)
+{
+    m_size = size;
+}
+
 uint16_t simpleTCP::getSeqNum() const
 {
     return m_header.seq_num;
