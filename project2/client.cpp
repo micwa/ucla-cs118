@@ -21,7 +21,6 @@
 
 using namespace std;
 
-
 static void errorAndExit(const string& msg)
 {
     cerr << msg << endl;
@@ -165,7 +164,6 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
         else            // Timeout
         {
             _DEBUG("Timeout receiving data packet");
-            sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
         }
     }
     ofs.close();
