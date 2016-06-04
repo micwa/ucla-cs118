@@ -64,14 +64,11 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
         }
 
         // Receive SYN/ACK packet
-        fd_set listening_socket;
-        FD_ZERO(&listening_socket);
-        FD_SET(sockfd, &listening_socket);
         struct timeval timeout;
         timeout.tv_sec = 0;
         timeout.tv_usec = rto;
         
-        if (select(sockfd + 1, &listening_socket, NULL, NULL, &timeout) > 0)
+        if (timeSocket(sockfd, &timeout) > 0)
         {
             int nbytes = recvPacket_toh(sockfd, packet, server_addr, &server_addr_length);
             cout << "Receiving SYN/ACK packet" << endl;
@@ -124,14 +121,11 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
 
     while (true)
     {
-        fd_set listening_socket;
-        FD_ZERO(&listening_socket);
-        FD_SET(sockfd, &listening_socket);
         struct timeval timeout;
         timeout.tv_sec = 0;
         timeout.tv_usec = rto;
         
-        if (select(sockfd + 1, &listening_socket, NULL, NULL, &timeout) > 0)
+        if (timeSocket(sockfd, &timeout) > 0)
         {
             int nbytes = recvPacket_toh(sockfd, packet, server_addr, &server_addr_length);
             int packet_seq = packet.getSeqNum();
@@ -205,14 +199,11 @@ static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_
         }
 
         // Receive ACK
-        fd_set listening_socket;
-        FD_ZERO(&listening_socket);
-        FD_SET(sockfd, &listening_socket);
         struct timeval timeout;
         timeout.tv_sec = 0;
         timeout.tv_usec = rto;
         
-        if (select(sockfd + 1, &listening_socket, NULL, NULL, &timeout) > 0)
+        if (timeSocket(sockfd, &timeout) > 0)
         {
             int nbytes = recvPacket_toh(sockfd, packet, server_addr, &server_addr_length);
             cout << "Receiving ACK packet " << packet.getAckNum() << endl;

@@ -5,7 +5,6 @@
 #include <fstream>
 #include <thread>
 #include <chrono>
-#include <queue>
 #include <map>
 #include <algorithm>
 #include <sys/types.h>
@@ -74,7 +73,7 @@ int main(int argc, char *argv[])
             errorAndExit("No connection possible for host: " + host);
     }
     
-    int seq_num, ack_num, cong_window, ssthresh, nbytes, queue_size;
+    int seq_num, ack_num, cong_window, ssthresh, nbytes, map_size;
     simpleTCP recv_packet;
     struct sockaddr client_addr;
     socklen_t client_addr_length = sizeof(client_addr);
@@ -106,22 +105,19 @@ int main(int argc, char *argv[])
     {
         // sends syn-ack packet
         simpleTCP synack_packet = makePacket_ton(seq_num, ack_num, cong_window, F_SYN | F_ACK, "", 0);
-        if (sendto(sockfd, (void *)&synack_packet, synack_packet.getSegmentSize(), 0,
+        if (sendAll(sockfd, (void *)&synack_packet, synack_packet.getSegmentSize(), 0,
                    (struct sockaddr *)&client_addr, client_addr_length) == -1)
         {
-            perror("sendto() error in server while sending SYN-ACK/SYN");
+            perror("sendAll() error in server while sending SYN-ACK/SYN");
         }
         
         // receives ack packet, resending syn-ack if not received in time
         
-        fd_set listening_socket;
-        FD_ZERO(&listening_socket);
-        FD_SET(sockfd, &listening_socket);
         struct timeval timeout;
         timeout.tv_sec = 0;
         timeout.tv_usec = INIT_RTO * 1000;
         
-        if (select(sockfd + 1, &listening_socket, NULL, NULL, &timeout) > 0)
+        if (timeSocket(sockfd, &timeout) > 0)
         {
             if ((nbytes = recv(sockfd, (void *)&recv_packet, sizeof(simpleHeader), 0)) == -1)
             {
@@ -152,10 +148,10 @@ int main(int argc, char *argv[])
     data_left_to_read = true;
     data_left_to_send = true;
     
-    queue<simpleTCP> unAckedQueue;
-    queue_size = 0;
+    map_size = 0;
     
     map<unsigned long long::simpleTCP> timeSent;
+    map<unsigned long long::simpleTCP>::iterator it;
     
     ofstream ofs;
     ofs.open(filename, fstream::out);
@@ -163,6 +159,7 @@ int main(int argc, char *argv[])
     char packet_buf[MAX_PAYLOAD];
     int payload_size;
     bool already_read_buf = false; // there's probably a better way to implement this logic
+    int prev_ack_num = recv_packet.getAckNum();
     int same_ack_count = 0;
     
     while (data_left_to_send)
@@ -189,7 +186,7 @@ int main(int argc, char *argv[])
                 already_read_buf = false;
             }
             
-            if (real_window < payload_size + queue_size)
+            if (real_window < payload_size + map_size)
             {
                 already_read_buf = true;
                 break;
@@ -197,16 +194,15 @@ int main(int argc, char *argv[])
             else
             {
                 simpleTCP data_packet = makePacket_ton(seq_num, ack_num, cong_window, 0, packet_buf, payload_size);
-                unAckedQueue(data_packet);
-                queue_size += payload_size;
+                map_size += payload_size;
                 struct timeval cur_time;
                 gettimeofday(cur_time, NULL);
                 unsigned long long microsec_time = cur_time.tv_sec * 1000000 + cur_time.tv_usec;
                 timeSent[microsec_time] = data_packet;
-                if (sendto(sockfd, (void *)&data_packet, data_packet.getSegmentSize(), 0,
+                if (sendAll(sockfd, (void *)&data_packet, data_packet.getSegmentSize(), 0,
                        client_addr, client_addr_length)) == -1)
                 {                    
-                    perror("sendto() error in server while sending data");
+                    perror("sendAll() error in server while sending data");
                 }
                 else
                 {
@@ -216,41 +212,86 @@ int main(int argc, char *argv[])
             }
         }
         
-        if ((nbytes = recv(sockfd, (void *)&recv_packet, MAX_SEGMENT_SIZE, 0)) == -1)
+        // congestion control
+        if (cong_window < 2 * ssthresh)
         {
-            perror("recv() error in server while processing ACK");
+            cong_window = cong_window * 2;
+        }
+        else if (cong_window < ssthresh)
+        {
+            cong_window = ssthresh;
         }
         else
         {
-            ntohPacket(recv_packet);
-            if(recv_packet.getACK())
+            cong_window++;
+        }
+        
+        // note that time has already passed between sending the packet and now
+        struct timeval ack_time, sent_time, time_passed, timeout_left;
+        gettimeofday(ack_time, NULL); 
+        sent_time.tv_sec = timeSent.begin()->first / 1000000;
+        sent_time.tv_usec = timeSent.begin()->first % 1000000;
+        timevalsub(ack_time, sent_time, time_passed); 
+        timevalsub(timeout, time_passed, timeout_left);
+        
+        // Receives ACK
+        if (timeSocket(sockfd, &timeout_left) > 0)
+        {
+            if ((nbytes = recv(sockfd, (void *)&recv_packet, MAX_SEGMENT_SIZE, 0)) == -1)
             {
-                cout << "Receiving ACK packet " << recv_packet.getAckNum() << endl;
-                break;
+                perror("recv() error in server while processing ACK");
+            }
+            else // Received ACK packet
+            {
+                ntohPacket(recv_packet);
+                if(recv_packet.getACK())
+                {
+                    cout << "Receiving ACK packet " << recv_packet.getAckNum() << endl;
+                    if (prev_ack_num == recv_packet.getAckNum())
+                    {
+                        same_ack_count++;
+                    }
+                    else
+                    {
+                        prev_ack_num = recv_packet.getAckNum();
+                        same_ack_count = 0;
+                    }
+                    if (recv_packet.getAckNum() == timeSent.begin()->second.getSeqNum() + timeSent.begin()->second.getPayloadSize())
+                    {
+                        map_size -= timeSent.begin()->second.getPayloadSize();
+                        timeSent.erase(timeSent.begin()); // actually the right ack, erase from map
+                    }
+                    // a wrong ack packet can probably be safely ignored
+                }
+            }
+            usleep(timeout.tv_usec + timeout.tv_sec * 1000000);
+            continue;
+        }
+        else // timeout - Tahoe
+        {
+            ssthresh = cong_window / 2;
+            cong_window = INIT_CONG_SIZE;
+            for (it = timeSent.begin(); it != timeSent.end(); it++)
+            {
+                
+            }
+        }
+        if (same_ack_count == 3) // three dup acks - Reno
+        {
+            cong_window /= 2;
+            ssthresh = cong_window;
+            for (it = timeSent.begin(); it != timeSent.end(); it++)
+            {
+                
             }
         }
         
-        if () // timeout
-        else if () // three dup acks - Reno
-        
+        if (!data_left_to_read && timeSent.empty())
+        {
+            break; // done with data transfer
+        }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

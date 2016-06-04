@@ -33,4 +33,7 @@ bool sendAck(int sockfd, const struct sockaddr *server_addr, socklen_t server_ad
 // Returns the return value of recvfrom().
 int recvPacket_toh(int sockfd, simpleTCP& packet, struct sockaddr *server_addr, socklen_t *server_addr_length);
 
+// Puts select()'s preparation into one line
+int timeSocket(sockfd, struct timeval *timeout);
+
 #endif

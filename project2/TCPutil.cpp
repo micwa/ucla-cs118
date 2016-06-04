@@ -109,3 +109,11 @@ int recvPacket_toh(int sockfd, simpleTCP& packet, struct sockaddr *server_addr, 
 
     return nbytes;
 }
+
+int timeSocket(int sockfd, struct timeval *timeout)
+{
+    fd_set listening_socket;
+    FD_ZERO(&listening_socket);
+    FD_SET(sockfd, &listening_socket);
+    return select(sockfd + 1, &listening_socket, NULL, NULL, timeout);
+}
