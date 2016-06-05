@@ -29,9 +29,9 @@ void TCPrto::srtt(struct timeval rtt)
     }
     else
     {
-        m_srtt = 4 * m_srtt / 5 + (rtt.tv_usec + rtt.tv_sec * 1000000) / 5; // alpha of rfc 793 = 0.8 (rec: [0.8,0.9])
+        m_srtt = 4.0 * m_srtt / 5 + (rtt.tv_usec + rtt.tv_sec * 1000000) / 5.0; // alpha of rfc 793 = 0.8 (rec: [0.8,0.9])
     }
-    m_rto = min(RTO_UBOUND, 3 * m_srtt / 2); // beta of rfc 793 = 1.5 (rec: [1.3,2.0])
+    m_rto = min(RTO_UBOUND, (int)(3.0 * m_srtt / 2)); // beta of rfc 793 = 1.5 (rec: [1.3,2.0])
 }
 
 int TCPrto::getSrtt()
