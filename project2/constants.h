@@ -17,9 +17,13 @@ const int INIT_CONG_SIZE = 1024;
 // Timers
 const int INIT_SLOWSTART = 1024;
 const int INIT_RTO = 500; // ms
+const int RTO_UBOUND = 20000000; // us -> 20 sec
 
 // For server
 const int BACKLOG = 20;
+
+
+const unsigned long long ULL_MEGA = 1000000;
 
 #endif
 
