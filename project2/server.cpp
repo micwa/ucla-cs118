@@ -125,6 +125,7 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
         timersub(&max_timeout, &diff_time, &timeout);
         if (timeSocket(sockfd, &timeout) > 0)       // ACK any further input
         {
+            recvPacket_toh(sockfd, packet, client_addr, &client_addr_length);
             gettimeofday(&now_time, NULL);
             timersub(&now_time, &init_time, &diff_time);
             continue;
