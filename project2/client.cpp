@@ -33,33 +33,32 @@ static int seq_num = 0;
 static int ack_num = 0;
 static int rto = INIT_RTO * 1000;
 
-static void sleepTimeout()
-{
-    _DEBUG("Sleeping for: " + to_string(rto / 1000) + " microseconds");
-    usleep(rto);
-}
-
 // HANDSHAKE:
-// - send SYN; if not successful, wait and continue
-// - receive SYN/ACK; if not received, wait and continue
+// - send SYN (assume it's sent)
+// - receive SYN/ACK; if invalid or not received, continue
 // - send ACK; set this as last_ack; break
 // Returns the last ACK packet sent.
 static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t server_addr_length)
 {
     simpleTCP packet;
+    bool retransmission = false;
 
     while (true)
     {
         // Send SYN
+        cout << "Sending SYN packet " << seq_num;
+        if (retransmission)
+            cout << " Retransmission";
+        cout << endl;
+        retransmission = true;
+
         packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_SYN, "", 0);
         assert(packet.getSegmentSize() == 8);
 
         if (!sendAll(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
                    server_addr, server_addr_length))
         {
-            perror("sendto() error in client while sending SYN");
-            sleepTimeout();
-            continue;
+            perror("sendAll() sending SYN");
         }
 
         // Receive SYN/ACK packet
@@ -71,20 +70,19 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
         {
             int nbytes = recvPacket_toh(sockfd, packet, server_addr, &server_addr_length);
 
-            // Packet must have at least a header and be SYN/ACK
+            // Packet must have at least a header, be SYN/ACK, and have the proper sequence number
             if (nbytes < packet.getHeaderSize() || !packet.getACK() || !packet.getSYN())
             {
-                perror("recvfrom() error in client while receiving SYN/ACK");
-                sleepTimeout();
+                _ERROR("Receiving SYN/ACK packet for handshake");
                 continue;
             }
         }
         else
         {
             _DEBUG("Timeout receiving SYN/ACK packet");
-            sleepTimeout();
             continue;
         }
+        cout << "Receiving SYN/ACK packet" << endl;
         
         // Send ACK packet
         ack_num = (packet.getSeqNum() + 1) % MAX_SEQ_NUM;
@@ -105,8 +103,8 @@ static bool isValidSeq(int a, int b)
 
 // RECEIVE FILE:
 // - receive a data packet
-// - if out-of-order packet or timeout, resend last_ack_packet
-// - else, create a new ACK and send it; set this as the last_ack_packet
+// - if old data packet, resend last_ack_packet
+// - else if proper packet, create a new ACK and send it; set this as the last_ack_packet
 // - if data packet has FIN set, break
 static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t server_addr_length,
                         simpleTCP last_ack_packet)
@@ -170,7 +168,8 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
 
 // TEARDOWN:
 // - send FIN/ACK
-// - receive ACK; if timeout or invalid, continue; else break
+// - receive ACK
+// - if timeout or invalid, continue; else break
 static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_addr_length)
 {
     simpleTCP packet;
@@ -184,6 +183,7 @@ static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_
             cout << " Retransmission";
         cout << endl;
         retransmission = true;
+
         packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK|F_SYN, "", 0);
         assert(packet.getSegmentSize() == 8);
 
@@ -191,8 +191,6 @@ static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_
                      server_addr, server_addr_length))
         {
             perror("sendto() error in client while sending FIN/ACK");
-            sleepTimeout();
-            continue;
         }
 
         // Receive ACK
@@ -209,7 +207,7 @@ static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_
             if (nbytes < packet.getHeaderSize() || !packet.getACK() ||
                 packet.getSeqNum() != ack_num)
             {
-                _DEBUG("Invalid packet received");
+                _ERROR("Receiving ACK packet for teardown");
                 continue;
             }
         }
