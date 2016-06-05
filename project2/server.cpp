@@ -18,6 +18,7 @@
 #include "simpleTCP.h"
 #include "constants.h"
 #include "TCPutil.h"
+#include "TCPrto.h"
 #include "logerr.h"
 
 using namespace std;
@@ -27,6 +28,12 @@ static void errorAndExit(const string& msg)
     cerr << msg << endl;
     exit(EXIT_FAILURE);
 }
+
+static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_addr_length)
+{
+
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -85,6 +92,9 @@ int main(int argc, char *argv[])
     ssthresh = INIT_SLOWSTART;
     init_syn = false;
     
+    struct timeval timeout;
+    TCPrto rtoObj = TCPrto();
+    
     // receives syn packet
     while (!init_syn)
     {
@@ -110,12 +120,14 @@ int main(int argc, char *argv[])
         {
             perror("sendAll() error in server while sending SYN-ACK/SYN");
         }
-        
+        else
+        {
+            gettimeofday(sent_syn, NULL);
+        }
         // receives ack packet, resending syn-ack if not received in time
         
-        struct timeval timeout;
-        timeout.tv_sec = 0;
-        timeout.tv_usec = INIT_RTO * 1000;
+        struct timeval sent_syn, recv_acksyn, diff_syn;
+        timeout = rtoObj.getRto();
         
         if (timeSocket(sockfd, &timeout) > 0)
         {
@@ -128,6 +140,9 @@ int main(int argc, char *argv[])
                 ntohPacket(recv_packet);
                 if(recv_packet.getACK())
                 {
+                    gettimeofday(recv_acksyn, NULL);
+                    timersub(recv_acksyn, sent_syn, diff_syn);
+                    rtoObj.srtt(diff_syn);
                     cout << "Receiving ACK packet " << recv_packet.getAckNum() << endl;
                     break;
                 }
@@ -161,11 +176,6 @@ int main(int argc, char *argv[])
     bool already_read_buf = false; // there's probably a better way to implement this logic
     int prev_ack_num = recv_packet.getAckNum();
     int same_ack_count = 0;
-    
-    int srtt = 0; // in us
-    int rto = INIT_RTO * 1000; // in ms
-    timeout.tv_sec = rto / 1000000;
-    timeout.tv_usec = rto % 1000000;
     
     while (data_left_to_send)
     {
@@ -235,8 +245,6 @@ int main(int argc, char *argv[])
         timevalsub(ack_time, sent_time, time_passed); 
         timevalsub(timeout, time_passed, timeout_left);
         
-        
-        
         // Receives ACK
         if (timeSocket(sockfd, &timeout_left) > 0)
         {
@@ -264,17 +272,8 @@ int main(int argc, char *argv[])
                         map_size -= timeSent.begin()->second.getPayloadSize();
                         timeSent.erase(timeSent.begin()); // actually the right ack, erase from map
                         
-                        if (srtt == 0) // adaptive rto
-                        {
-                            srtt = time_passed.tv_usec;
-                        }
-                        else
-                        {
-                            srtt = 4 * srtt / 5 + time_passed.tv_usec / 5; 
-                        }
-                        rto = min(RTO_UBOUND, 3 * srtt / 2);
-                        timeout.tv_sec = rto / 1000000;
-                        timeout.tv_usec = rto % 1000000;
+                        rtoObj.srtt(time_passed);
+                        timeout = rtoObj.getRto();
                         
                         if (cong_window >= ssthresh) // Congestion control
                         {
@@ -289,6 +288,9 @@ int main(int argc, char *argv[])
         {
             ssthresh = cong_window / 2;
             cong_window = INIT_CONG_SIZE;
+            
+            rtoObj.rtoTimeout();
+            
             int tahoe_data_sent = 0;
             for (it = timeSent.begin(); it != timeSent.end(); it++)
             {
@@ -330,6 +332,7 @@ int main(int argc, char *argv[])
         }
     }
     
+    teardown();
     // FIN teardown
 }
 
