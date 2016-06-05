@@ -51,7 +51,6 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
     while (true)
     {
         // Send SYN
-        cout << "Sending SYN packet" << endl;
         packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_SYN, "", 0);
         assert(packet.getSegmentSize() == 8);
 
@@ -71,7 +70,6 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
         if (timeSocket(sockfd, &timeout) > 0)
         {
             int nbytes = recvPacket_toh(sockfd, packet, server_addr, &server_addr_length);
-            cout << "Receiving SYN/ACK packet" << endl;
 
             // Packet must have at least a header and be SYN/ACK
             if (nbytes < packet.getHeaderSize() || !packet.getACK() || !packet.getSYN())

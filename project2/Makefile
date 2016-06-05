@@ -6,12 +6,14 @@ USERID=904469956, 204458659
 # Add all .cpp files that need to be compiled for your server
 SERVER_FILES=server.cpp \
 			 	simpleTCP.cpp \
-				TCPutil.cpp
+				TCPutil.cpp \
+				TCPrto.cpp
 
 # Add all .cpp files that need to be compiled for your client
 CLIENT_FILES=client.cpp \
 			 	simpleTCP.cpp \
-				TCPutil.cpp
+				TCPutil.cpp \
+				TCPrto.cpp
 
 all: server client
 

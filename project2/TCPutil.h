@@ -1,11 +1,20 @@
 #ifndef TCPutil_h
 #define TCPutil_h
 
-#include <cstdint>
+#include <cassert>
+#include <cstdlib>
+#include <cstring>
 #include <string>
-#include <sys/socket.h>
+#include <iostream>
+#include <thread>
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/select.h>
 #include <netdb.h>
+#include <unistd.h>
+#include <arpa/inet.h>
 
 #include "simpleTCP.h"
 
@@ -34,6 +43,6 @@ bool sendAck(int sockfd, const struct sockaddr *server_addr, socklen_t server_ad
 int recvPacket_toh(int sockfd, simpleTCP& packet, struct sockaddr *server_addr, socklen_t *server_addr_length);
 
 // Puts select()'s preparation into one line
-int timeSocket(sockfd, struct timeval *timeout);
+int timeSocket(int sockfd, struct timeval *timeout);
 
 #endif

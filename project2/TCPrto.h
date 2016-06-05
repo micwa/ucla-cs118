@@ -12,13 +12,13 @@
 #include <stdio.h>
 #include <algorithm>
 #include <sys/time.h>
-#include <constants.h>
+#include "constants.h"
 
 class TCPrto
 {
 private:
-    int srtt;
-    int rto;
+    int m_srtt;
+    int m_rto;
 public:
     TCPrto();
     void rtoTimeout();

@@ -29,9 +29,68 @@ static void errorAndExit(const string& msg)
     exit(EXIT_FAILURE);
 }
 
-static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_addr_length)
+static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *client_addr, socklen_t client_addr_length, 
+                     TCPrto rtoObj)
 {
-
+    simpleTCP packet;
+    bool FIN_accepted = false;
+    while (true)
+    {
+        struct timeval timeout = rtoObj.getRto();
+        // Send FIN
+        if (!FIN_accepted)
+        {
+            packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_FIN, "", 0);
+            assert(packet.getSegmentSize() == 8);
+            
+            if (!sendAll(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
+                         client_addr, client_addr_length))
+            {
+                perror("sendto() error in server while sending FIN");
+                usleep(timeout.tv_usec + timeout.tv_sec * 1000000);
+                continue;
+            }
+        }
+        
+        // Receive FIN/ACK packet
+        
+        if (timeSocket(sockfd, &timeout) > 0)
+        {
+            int nbytes = recvPacket_toh(sockfd, packet, client_addr, &client_addr_length);
+            
+            // Packet must have at least a header and be FIN/ACK
+            if (nbytes < packet.getHeaderSize() || !packet.getACK() || !packet.getFIN())
+            {
+                perror("recvfrom() error in server while receiving FIN/ACK");
+                usleep(timeout.tv_usec + timeout.tv_sec * 1000000);
+                continue;
+            }
+        }
+        else
+        {
+            _DEBUG("Timeout receiving FIN/ACK packet");
+            usleep(timeout.tv_usec + timeout.tv_sec * 1000000);
+            continue;
+        }
+        
+        // Send ACK packet
+        ack_num = (packet.getSeqNum() + 1) % MAX_SEQ_NUM;
+        seq_num = (seq_num + 1) % MAX_SEQ_NUM;
+        
+        packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK, "", 0);
+        sendAck(sockfd, client_addr, client_addr_length, packet, false);
+        
+        rtoObj.rtoTimeout();
+        if (timeSocket(sockfd, &timeout) > 0)
+        {
+            FIN_accepted = true;
+            continue;
+        }
+        else
+        {
+            break;
+        }
+    }
 }
 
 
@@ -98,14 +157,12 @@ int main(int argc, char *argv[])
     // receives syn packet
     while (!init_syn)
     {
-        if ((nbytes = recvfrom(sockfd, (void *)&recv_packet, sizeof(simpleHeader), 0,
-                               &client_addr, &client_addr_length)) == -1)
+        if ((nbytes = recvPacket_toh(sockfd, recv_packet, &client_addr, &client_addr_length)) == -1)
         {
             perror("recvfrom() error in server while processing SYN");
         }
         else
         {
-            ntohPacket(recv_packet);
             init_syn = recv_packet.getSYN();
             ack_num = (recv_packet.getSeqNum() + 1) % MAX_SEQ_NUM;
         }
@@ -113,6 +170,8 @@ int main(int argc, char *argv[])
     
     while (true)
     {
+        struct timeval sent_syn, recv_acksyn, diff_syn;
+        
         // sends syn-ack packet
         simpleTCP synack_packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_SYN | F_ACK, "", 0);
         if (sendAll(sockfd, (void *)&synack_packet, synack_packet.getSegmentSize(), 0,
@@ -122,26 +181,24 @@ int main(int argc, char *argv[])
         }
         else
         {
-            gettimeofday(sent_syn, NULL);
+            gettimeofday(&sent_syn, NULL);
         }
         // receives ack packet, resending syn-ack if not received in time
         
-        struct timeval sent_syn, recv_acksyn, diff_syn;
         timeout = rtoObj.getRto();
         
         if (timeSocket(sockfd, &timeout) > 0)
         {
-            if ((nbytes = recv(sockfd, (void *)&recv_packet, sizeof(simpleHeader), 0)) == -1)
+            if ((nbytes = recvPacket_toh(sockfd, recv_packet, &client_addr, &client_addr_length)) == -1)
             {
                 perror("recv() error in server while processing ACK");
             }
             else
             {
-                ntohPacket(recv_packet);
                 if(recv_packet.getACK())
                 {
-                    gettimeofday(recv_acksyn, NULL);
-                    timersub(recv_acksyn, sent_syn, diff_syn);
+                    gettimeofday(&recv_acksyn, NULL);
+                    timersub(&recv_acksyn, &sent_syn, &diff_syn);
                     rtoObj.srtt(diff_syn);
                     cout << "Receiving ACK packet " << recv_packet.getAckNum() << endl;
                     break;
@@ -168,18 +225,19 @@ int main(int argc, char *argv[])
     map<unsigned long long, simpleTCP> timeSent;
     map<unsigned long long, simpleTCP>::iterator it;
     
-    ofstream ofs;
+    fstream ofs;
     ofs.open(filename, fstream::out);
     
     char packet_buf[MAX_PAYLOAD];
-    int payload_size;
+    int payload_size = 0;
     bool already_read_buf = false; // there's probably a better way to implement this logic
     int prev_ack_num = recv_packet.getAckNum();
     int same_ack_count = 0;
     
     while (data_left_to_send)
     {
-        int real_window = min(cong_window, recv_packet.getWindow()); 
+        int receiver_window = (int) recv_packet.getWindow();
+        int real_window = min(cong_window, receiver_window); 
         while (data_left_to_read) // loop is exited when there is no more to read OR when too much sent for window
         {
             if (!already_read_buf)
@@ -211,11 +269,11 @@ int main(int argc, char *argv[])
                 simpleTCP data_packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, 0, packet_buf, payload_size);
                 map_size += payload_size;
                 struct timeval cur_time;
-                gettimeofday(cur_time, NULL);
+                gettimeofday(&cur_time, NULL);
                 unsigned long long microsec_time = cur_time.tv_sec * ULL_MEGA + cur_time.tv_usec;
                 timeSent[microsec_time] = data_packet;
                 if (sendAll(sockfd, (void *)&data_packet, data_packet.getSegmentSize(), 0,
-                       client_addr, client_addr_length)) == -1)
+                       (struct sockaddr *)&client_addr, client_addr_length) == -1)
                 {                    
                     perror("sendAll() error in server while sending data");
                 }
@@ -239,22 +297,21 @@ int main(int argc, char *argv[])
         
         // note that time has already passed between sending the packet and now
         struct timeval ack_time, sent_time, time_passed, timeout_left;
-        gettimeofday(ack_time, NULL); 
+        gettimeofday(&ack_time, NULL); 
         sent_time.tv_sec = timeSent.begin()->first / 1000000;
         sent_time.tv_usec = timeSent.begin()->first % 1000000;
-        timevalsub(ack_time, sent_time, time_passed); 
-        timevalsub(timeout, time_passed, timeout_left);
+        timersub(&ack_time, &sent_time, &time_passed); 
+        timersub(&timeout, &time_passed, &timeout_left);
         
         // Receives ACK
         if (timeSocket(sockfd, &timeout_left) > 0)
         {
-            if ((nbytes = recv(sockfd, (void *)&recv_packet, MAX_SEGMENT_SIZE, 0)) == -1)
+            if ((nbytes = recvPacket_toh(sockfd, recv_packet, &client_addr, &client_addr_length)) == -1)
             {
                 perror("recv() error in server while processing ACK");
             }
             else // Received ACK packet
             {
-                ntohPacket(recv_packet);
                 if(recv_packet.getACK())
                 {
                     cout << "Receiving ACK packet " << recv_packet.getAckNum() << endl;
@@ -299,12 +356,12 @@ int main(int argc, char *argv[])
                     break;
                 }
                 struct timeval cur_time;
-                gettimeofday(cur_time, NULL);
+                gettimeofday(&cur_time, NULL);
                 unsigned long long microsec_time = cur_time.tv_sec * ULL_MEGA + cur_time.tv_usec;
                 simpleTCP resent_data_packet = it->second;
                 timeSent[microsec_time] = resent_data_packet;
                 if (sendAll(sockfd, (void *)&resent_data_packet, resent_data_packet.getSegmentSize(), 0,
-                            client_addr, client_addr_length)) == -1)
+                            (struct sockaddr *)&client_addr, client_addr_length) == -1)
                 {                    
                     perror("sendAll() error in server while sending data");
                 }
@@ -332,19 +389,6 @@ int main(int argc, char *argv[])
         }
     }
     
-    teardown();
+    teardown(sockfd, seq_num, ack_num, &client_addr, client_addr_length, rtoObj);
     // FIN teardown
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

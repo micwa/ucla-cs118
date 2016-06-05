@@ -1,18 +1,3 @@
-#include <cassert>
-#include <cstdlib>
-#include <cstring>
-#include <string>
-#include <iostream>
-#include <thread>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/select.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-
 #include "TCPutil.h"
 #include "logerr.h"
 
