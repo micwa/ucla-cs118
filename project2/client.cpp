@@ -121,11 +121,11 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
     {
         int nbytes = recvPacket_toh(sockfd, packet, server_addr, &server_addr_length);
         int packet_seq = packet.getSeqNum();
-        cout << "Receiving data packet " << packet_seq << endl;
 
         // Packet must have at least a header and an ACK
         if (nbytes >= packet.getHeaderSize() && packet.getACK())
         {
+            cout << "Receiving data packet " << packet_seq << endl;
             if (packet_seq == ack_num)  // In-order packet
             {
                 ofs.write(packet.getMessage(), packet.getPayloadSize());
@@ -190,7 +190,6 @@ static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_
         if (timeSocket(sockfd, &timeout) > 0)
         {
             int nbytes = recvPacket_toh(sockfd, packet, server_addr, &server_addr_length);
-            cout << "Receiving ACK packet " << packet.getAckNum() << endl;
 
             // Packet must have proper sequence number and ACK set
             if (nbytes < packet.getHeaderSize() || !packet.getACK() ||
@@ -208,6 +207,7 @@ static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_
         }
 
         // Everything OK
+        cout << "Receiving ACK packet " << packet.getAckNum() << endl;
         break;
     }
 }
