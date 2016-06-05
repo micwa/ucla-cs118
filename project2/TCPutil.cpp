@@ -69,7 +69,7 @@ bool sendAck(int sockfd, const struct sockaddr *server_addr, socklen_t server_ad
              simpleTCP& ack_packet, bool retransmission)
 {
     assert(ack_packet.getSegmentSize() == 8);
-    cout << "Sending ACK packet " << ack_packet.getAckNum();
+    cout << "Sending ACK packet " << ntohs(ack_packet.getAckNum());
     if (retransmission)
         cout << " Retransmission";
     cout << endl;
