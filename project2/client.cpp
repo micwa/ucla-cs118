@@ -31,7 +31,7 @@ static void errorAndExit(const string& msg)
 /* GLOBAL VARIABLES */
 static int seq_num = 0;
 static int ack_num = 0;
-static int rto = INIT_RTO * 1000;
+static TCPrto rtoObj;
 
 // HANDSHAKE:
 // - send SYN (assume it's sent)
@@ -62,9 +62,8 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
         }
 
         // Receive SYN/ACK packet
-        struct timeval timeout;
-        timeout.tv_sec = 0;
-        timeout.tv_usec = rto;
+        struct timeval timeout = rtoObj.getRto();
+        struct timeval diff_syn, recv_acksyn;
         
         if (timeSocket(sockfd, &timeout) > 0)
         {
@@ -80,9 +79,13 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
         else
         {
             _DEBUG("Timeout receiving SYN/ACK packet");
+            rtoObj.rtoTimeout();
             continue;
         }
         cout << "Receiving SYN/ACK packet" << endl;
+        gettimeofday(&recv_acksyn, NULL);
+        timersub(&recv_acksyn, &sent_syn, &diff_syn);
+        rtoObj.srtt(diff_syn);
         
         // Send ACK packet
         ack_num = (packet.getSeqNum() + 1) % MAX_SEQ_NUM;
@@ -117,50 +120,39 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
 
     while (true)
     {
-        struct timeval timeout;
-        timeout.tv_sec = 0;
-        timeout.tv_usec = rto;
-        
-        if (timeSocket(sockfd, &timeout) > 0)
+        int nbytes = recvPacket_toh(sockfd, packet, server_addr, &server_addr_length);
+        int packet_seq = packet.getSeqNum();
+        cout << "Receiving data packet " << packet_seq << endl;
+
+        // Packet must have at least a header and an ACK
+        if (nbytes >= packet.getHeaderSize() && packet.getACK())
         {
-            int nbytes = recvPacket_toh(sockfd, packet, server_addr, &server_addr_length);
-            int packet_seq = packet.getSeqNum();
-            cout << "Receiving data packet " << packet_seq << endl;
-
-            // Packet must have at least a header and an ACK
-            if (nbytes >= packet.getHeaderSize() && packet.getACK())
+            if (packet_seq == ack_num)  // In-order packet
             {
-                if (packet_seq == ack_num)  // In-order packet
-                {
-                    ofs.write(packet.getMessage(), packet.getPayloadSize());
+                ofs.write(packet.getMessage(), packet.getPayloadSize());
 
-                    ack_num = (ack_num + packet.getPayloadSize()) % MAX_SEQ_NUM;
-                    if (packet.getFIN())
-                        ack_num = (ack_num + 1) % MAX_SEQ_NUM;
+                ack_num = (ack_num + packet.getPayloadSize()) % MAX_SEQ_NUM;
+                if (packet.getFIN())
+                    ack_num = (ack_num + 1) % MAX_SEQ_NUM;
 
-                    last_ack_packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK, "", 0);
-                    sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, false);
+                last_ack_packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK, "", 0);
+                sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, false);
 
-                    if (packet.getFIN())
-                        break;
-                }
-                else if (isValidSeq(ack_num, packet_seq))   // Old packet
-                {
-                    sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
-                }
-                else    // Out-of-order packet
-                {
-                    // Drop for now
-                }
+                if (packet.getFIN())
+                    break;
             }
-            else        // Malformed packet (or none)
+            else if (isValidSeq(ack_num, packet_seq))   // Old packet
             {
-                _ERROR("Receiving data packet");
+                sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
+            }
+            else    // Out-of-order packet
+            {
+                // Drop for now
             }
         }
-        else            // Timeout
+        else        // Malformed packet (or recvfrom() error)
         {
-            _DEBUG("Timeout receiving data packet");
+            _ERROR("Receiving data packet");
         }
     }
     ofs.close();
@@ -194,9 +186,7 @@ static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_
         }
 
         // Receive ACK
-        struct timeval timeout;
-        timeout.tv_sec = 0;
-        timeout.tv_usec = rto;
+        struct timeval timeout = rtoObj.getRto();
         
         if (timeSocket(sockfd, &timeout) > 0)
         {
@@ -214,6 +204,7 @@ static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_
         else            // Timeout
         {
             _DEBUG("Timeout receiving ACK packet");
+            rtoObj.rtoTimeout();
             continue;
         }
 
