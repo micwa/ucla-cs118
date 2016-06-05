@@ -111,6 +111,7 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
     max_timeout.tv_sec  = RTO_UBOUND / 1000000;
     max_timeout.tv_usec = RTO_UBOUND % 1000000;
     timersub(&now_time, &init_time, &diff_time);
+    retransmission = false;
 
     while (timercmp(&diff_time, &max_timeout, <))
     {
@@ -118,7 +119,8 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
         int new_ack = (ack_num + 1) % MAX_SEQ_NUM;
         
         packet = makePacket_ton(seq_num, new_ack, RECV_WINDOW, F_ACK, "", 0);
-        sendAck(sockfd, client_addr, client_addr_length, packet, false);
+        sendAck(sockfd, client_addr, client_addr_length, packet, retransmission);
+        retransmission = true;
         
         timersub(&max_timeout, &diff_time, &timeout);
         if (timeSocket(sockfd, &timeout) > 0)       // ACK any further input
