@@ -33,11 +33,19 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
                      TCPrto rtoObj)
 {
     simpleTCP packet;
+    bool retransmission = false;
 
     while (true)
     {
         // Send FIN packet
-        struct timeval timeout = rtoObj.getRto();
+        cout << "Sending FIN packet";
+        if (retransmission)
+            cout << " Retransmission";
+        cout << endl;
+        retransmission = true;
+
+        struct timeval sent_time, recv_time, diff_time;
+        gettimeofday(&sent_time, NULL);
         packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_FIN, "", 0);
 
         if (!sendAll(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
@@ -47,6 +55,7 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
         }
 
         // Receive ACK packet
+        struct timeval timeout = rtoObj.getRto();
         if (timeSocket(sockfd, &timeout) > 0)
         {
             int nbytes = recvPacket_toh(sockfd, packet, client_addr, &client_addr_length);
@@ -65,8 +74,11 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
             rtoObj.rtoTimeout();
             continue;
         }
+        cout << "Receiving ACK packet " << packet.getAckNum();
+        gettimeofday(&recv_time, NULL);
+        timersub(&recv_time, &sent_time, &diff_time);
+        rtoObj.srtt(diff_time);
 
-        // ACK packet OK
         if (packet.getFIN())        // If ACK was lost, but FIN/ACK was received
             goto received_finack;
         break;
@@ -97,13 +109,13 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
             rtoObj.rtoTimeout();
             continue;
         }
+        cout << "Receiving FIN/ACK packet " << packet.getAckNum();
         
  received_finack:
         // Send ACK packet
         int new_ack = (ack_num + 1) % MAX_SEQ_NUM;
-        timeout = rtoObj.getRto();
-        timeout.tv_sec += timeout.tv_usec * 2 / 1000000;
-        timeout.tv_usec = timeout.tv_usec * 2 % 1000000;
+        timeout.tv_sec  = RTO_UBOUND / 1000000;
+        timeout.tv_usec = RTO_UBOUND % 1000000;
         
         packet = makePacket_ton(seq_num, new_ack, RECV_WINDOW, F_ACK, "", 0);
         sendAck(sockfd, client_addr, client_addr_length, packet, false);
@@ -232,8 +244,6 @@ int main(int argc, char *argv[])
             rtoObj.rtoTimeout();
             continue;
         }
-
-        // Good ACK packet
         cout << "Receiving ACK packet " << recv_packet.getAckNum() << endl;
         gettimeofday(&recv_acksyn, NULL);
         timersub(&recv_acksyn, &sent_syn, &diff_syn);

@@ -52,8 +52,9 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
         cout << endl;
         retransmission = true;
 
+        struct timeval sent_time, recv_time, diff_time;
+        gettimeofday(&sent_time, NULL);
         packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_SYN, "", 0);
-        assert(packet.getSegmentSize() == 8);
 
         if (!sendAll(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
                    server_addr, server_addr_length))
@@ -63,8 +64,6 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
 
         // Receive SYN/ACK packet
         struct timeval timeout = rtoObj.getRto();
-        struct timeval diff_syn, recv_acksyn;
-        
         if (timeSocket(sockfd, &timeout) > 0)
         {
             int nbytes = recvPacket_toh(sockfd, packet, server_addr, &server_addr_length);
@@ -83,9 +82,9 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
             continue;
         }
         cout << "Receiving SYN/ACK packet" << endl;
-        gettimeofday(&recv_acksyn, NULL);
-        timersub(&recv_acksyn, &sent_syn, &diff_syn);
-        rtoObj.srtt(diff_syn);
+        gettimeofday(&recv_time, NULL);
+        timersub(&recv_time, &sent_time, &diff_time);
+        rtoObj.srtt(diff_time);
         
         // Send ACK packet
         ack_num = (packet.getSeqNum() + 1) % MAX_SEQ_NUM;
