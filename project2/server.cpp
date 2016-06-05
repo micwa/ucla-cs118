@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                simpleTCP data_packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, 0, packet_buf, payload_size);
+                simpleTCP data_packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK, packet_buf, payload_size);
                 map_size += payload_size;
                 struct timeval cur_time;
                 gettimeofday(&cur_time, NULL);
