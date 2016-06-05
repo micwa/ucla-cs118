@@ -34,6 +34,7 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
 {
     simpleTCP packet;
     bool retransmission = false;
+    bool received_finack = false;
 
     while (true)
     {
@@ -80,50 +81,53 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
         rtoObj.srtt(diff_time);
 
         if (packet.getFIN())        // If ACK was lost, but FIN/ACK was received
-            goto received_finack;
+            received_finack = true;
         break;
     }
     seq_num = (seq_num + 1) % MAX_SEQ_NUM;
 
-    struct timeval timeout;         // Outside the loop, for goto statement to work
-    while (true)
+    // Receive FIN/ACK packet
+    while (!received_finack)
     {
-        // Receive FIN/ACK packet
-        timeout = rtoObj.getRto();
-
-        if (timeSocket(sockfd, &timeout) > 0)
+        int nbytes = recvPacket_toh(sockfd, packet, client_addr, &client_addr_length);
+        
+        // Packet must have at least a header, be FIN/ACK, and have the proper sequence number
+        if (nbytes < packet.getHeaderSize() || !packet.getACK() || !packet.getFIN() ||
+            packet.getSeqNum() != ack_num)
         {
-            int nbytes = recvPacket_toh(sockfd, packet, client_addr, &client_addr_length);
-            
-            // Packet must have at least a header, be FIN/ACK, and have the proper sequence number
-            if (nbytes < packet.getHeaderSize() || !packet.getACK() || !packet.getFIN() ||
-                packet.getSeqNum() != ack_num)
-            {
-                _ERROR("Receiving FIN/ACK packet for teardown");
-                continue;
-            }
-        }
-        else
-        {
-            _DEBUG("Timeout receiving FIN/ACK packet");
-            rtoObj.rtoTimeout();
+            _ERROR("Receiving FIN/ACK packet for teardown");
             continue;
         }
         cout << "Receiving FIN/ACK packet " << packet.getAckNum();
-        
- received_finack:
+        received_finack = true;
+    }
+    ack_num = (ack_num + 1) % MAX_SEQ_NUM;
+
+    // Enter TIME_WAIT state; wait a maximum of RTO_UBOUND usecs
+    _DEBUG("Entering TIME_WAIT state");
+    struct timeval init_time, now_time, diff_time, timeout, max_timeout;
+    gettimeofday(&init_time, NULL);
+    gettimeofday(&now_time, NULL);
+    max_timeout.tv_sec  = RTO_UBOUND / 1000000;
+    max_timeout.tv_usec = RTO_UBOUND % 1000000;
+    timersub(&now_time, &init_time, &diff_time);
+
+    while (timercmp(&diff_time, &max_timeout, <))
+    {
         // Send ACK packet
         int new_ack = (ack_num + 1) % MAX_SEQ_NUM;
-        timeout.tv_sec  = RTO_UBOUND / 1000000;
-        timeout.tv_usec = RTO_UBOUND % 1000000;
         
         packet = makePacket_ton(seq_num, new_ack, RECV_WINDOW, F_ACK, "", 0);
         sendAck(sockfd, client_addr, client_addr_length, packet, false);
         
-        if (timeSocket(sockfd, &timeout) > 0)
+        timersub(&max_timeout, &diff_time, &timeout);
+        if (timeSocket(sockfd, &timeout) > 0)       // ACK any further input
+        {
+            gettimeofday(&now_time, NULL);
+            timersub(&now_time, &init_time, &diff_time);
             continue;
-        else
-            break;
+        }
+        break;
     }
 }
 
