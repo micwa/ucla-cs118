@@ -61,7 +61,7 @@ bool sendAll(int sockfd, const void *buf, size_t length, int flags,
         total += sent;
         bytesLeft -= sent;
     }
-    _DEBUG("Total sent: " + to_string(total) + " bytes");
+    //_DEBUG("Total sent: " + to_string(total) + " bytes");
     return true;
 }
 

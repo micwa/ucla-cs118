@@ -57,7 +57,7 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
         packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_SYN, "", 0);
 
         if (!sendAll(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
-                   server_addr, server_addr_length))
+                     server_addr, server_addr_length))
         {
             perror("sendAll() sending SYN");
         }
@@ -142,7 +142,7 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
             }
             else if (isValidSeq(ack_num, packet_seq))   // Old packet
             {
-                _DEBUG("Old packet")
+                _DEBUG("Old packet");
                 sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
             }
             else    // Out-of-order packet
@@ -171,13 +171,13 @@ static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_
     while (true)
     {
         // Send FIN/ACK
-        cout << "Sending SYN/ACK packet " << ack_num;
+        cout << "Sending FIN/ACK packet " << ack_num;
         if (retransmission)
             cout << " Retransmission";
         cout << endl;
         retransmission = true;
 
-        packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK|F_SYN, "", 0);
+        packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK|F_FIN, "", 0);
         assert(packet.getSegmentSize() == 8);
 
         if (!sendAll(sockfd, (void *)&packet, packet.getSegmentSize(), 0,

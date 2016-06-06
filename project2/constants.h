@@ -13,9 +13,9 @@ const int RECV_WINDOW = 30720;
 const int MAX_PACKET_LENGTH = 1032;
 const int MAX_SEQ_NUM = 30720;
 const int INIT_CONG_SIZE = 1024;
+const int INIT_SLOWSTART = 1024;
 
 // Timers
-const int INIT_SLOWSTART = 1024;
 const int INIT_RTO = 500; // ms
 const int RTO_UBOUND = 20000000; // us -> 20 sec
 
