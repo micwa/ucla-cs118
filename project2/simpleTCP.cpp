@@ -111,3 +111,8 @@ int simpleTCP::getSegmentSize() const
 {
     return getHeaderSize() + getPayloadSize();
 }
+
+bool simpleTCP::operator==(const simpleTCP& other) const
+{
+    return getSeqNum() == other.getSeqNum();
+}

@@ -44,6 +44,8 @@ public:
     int getHeaderSize() const;
     int getPayloadSize() const;
     int getSegmentSize() const;
+
+    bool operator==(const simpleTCP& other) const;
 };
 
 #endif /* SIMPLETCP_H */
