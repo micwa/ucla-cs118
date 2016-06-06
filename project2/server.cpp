@@ -5,7 +5,9 @@
 #include <fstream>
 #include <thread>
 #include <chrono>
-#include <map>
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
 #include <algorithm>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -27,6 +29,31 @@ static void errorAndExit(const string& msg)
 {
     cerr << msg << endl;
     exit(EXIT_FAILURE);
+}
+
+// Returns the number of packets in the vector that are ACKed by the given ack_num.
+static int packetsAcked(const vector<simpleTCP>& packets, int ack_num)
+{
+    int npackets = 0;
+    for (simpleTCP packet : packets)
+    {
+        ++npackets;
+        if ((packet.getSeqNum() + packet.getPayloadSize()) % MAX_SEQ_NUM == ack_num)
+            return npackets;
+    }
+    return 0;
+}
+
+// Acknowledge (erase) the first npackets packets from the given vector (and in the other containers).
+static void ackPackets(int npackets, vector<simpleTCP>& packets, unordered_map<simpleTCP, struct timeval>& time_sent,
+                       unordered_set<simpleTCP>& packets_sent)
+{
+    for (int i = 0; i < npackets; ++i)
+    {
+        time_sent.erase(packets[i]);
+        packets_sent.erase(packets[i]);
+    }
+    packets.erase(packets.begin(), packets.begin() + npackets);
 }
 
 static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *client_addr, socklen_t client_addr_length, 
