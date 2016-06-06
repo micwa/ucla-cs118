@@ -125,14 +125,19 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
         // Packet must have at least a header and an ACK
         if (nbytes >= packet.getHeaderSize() && packet.getACK())
         {
-            cout << "Receiving data packet " << packet_seq << endl;
+            cout << "Receiving data packet " << packet_seq;
             if (packet_seq == ack_num)  // In-order packet
             {
                 ofs.write(packet.getMessage(), packet.getPayloadSize());
 
                 ack_num = (ack_num + packet.getPayloadSize()) % MAX_SEQ_NUM;
                 if (packet.getFIN())
+                {
+                    cout << " FIN" << endl;
                     ack_num = (ack_num + 1) % MAX_SEQ_NUM;
+                }
+                else
+                    cout << endl;
 
                 last_ack_packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK, "", 0);
                 sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, false);
@@ -142,11 +147,13 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
             }
             else if (isValidSeq(ack_num, packet_seq))   // Old packet
             {
+                cout << endl;
                 _DEBUG("Old packet");
                 sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
             }
             else    // Out-of-order packet
             {
+                cout << endl;
                 _DEBUG("Out-of-order packet");
                 sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
             }
