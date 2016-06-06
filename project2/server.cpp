@@ -25,10 +25,51 @@
 
 using namespace std;
 
+namespace std
+{
+    template <>
+    struct hash<simpleTCP>
+    {
+        size_t operator()(const simpleTCP& s) const
+        {
+            return hash<int>()(s.getSeqNum());
+        }
+    };
+}
+
 static void errorAndExit(const string& msg)
 {
     cerr << msg << endl;
     exit(EXIT_FAILURE);
+}
+
+static void enqueuePacket(simpleTCP& packet, vector<simpleTCP>& packets, int& bytes_queued)
+{
+    packets.push_back(packet);
+    bytes_queued += packet.getPayloadSize();
+}
+
+static void sendDataPacket(simpleTCP& packet, unordered_map<simpleTCP, struct timeval>& time_sent,
+                           unordered_set<simpleTCP>& packets_sent, int& bytes_sent, int cong_window, int sshthresh,
+                           int sockfd, const struct sockaddr *client_addr, socklen_t client_addr_length)
+{
+    cout << "Sending data packet " << ntohs(packet.getSeqNum()) << " " << cong_window << " " << sshthresh;
+    if (packets_sent.count(packet) > 0)
+        cout << " Retransmission";
+    cout << endl;
+
+    if (!sendAll(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
+                 client_addr, client_addr_length))
+    {                    
+        perror("sendAll() error in server while sending data");
+    }
+
+    struct timeval cur_time;
+    gettimeofday(&cur_time, NULL);
+
+    time_sent[packet] = cur_time;
+    packets_sent.insert(packet);
+    bytes_sent += packet.getPayloadSize();
 }
 
 // Returns the number of packets in the vector that are ACKed by the given ack_num.
@@ -38,7 +79,7 @@ static int packetsAcked(const vector<simpleTCP>& packets, int ack_num)
     for (simpleTCP packet : packets)
     {
         ++npackets;
-        if ((packet.getSeqNum() + packet.getPayloadSize()) % MAX_SEQ_NUM == ack_num)
+        if ((ntohs(packet.getSeqNum()) + packet.getPayloadSize()) % MAX_SEQ_NUM == ack_num)
             return npackets;
     }
     return 0;
@@ -46,12 +87,14 @@ static int packetsAcked(const vector<simpleTCP>& packets, int ack_num)
 
 // Acknowledge (erase) the first npackets packets from the given vector (and in the other containers).
 static void ackPackets(int npackets, vector<simpleTCP>& packets, unordered_map<simpleTCP, struct timeval>& time_sent,
-                       unordered_set<simpleTCP>& packets_sent)
+                       unordered_set<simpleTCP>& packets_sent, int& bytes_queued, int& bytes_sent)
 {
     for (int i = 0; i < npackets; ++i)
     {
         time_sent.erase(packets[i]);
         packets_sent.erase(packets[i]);
+        bytes_queued -= packets[i].getPayloadSize();
+        bytes_sent -= packets[i].getPayloadSize();
     }
     packets.erase(packets.begin(), packets.begin() + npackets);
 }
@@ -74,7 +117,7 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
 
         struct timeval sent_time, recv_time, diff_time;
         gettimeofday(&sent_time, NULL);
-        packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_FIN, "", 0);
+        packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_FIN|F_ACK, "", 0);
 
         if (!sendAll(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
                      client_addr, client_addr_length))
@@ -102,7 +145,7 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
             rtoObj.rtoTimeout();
             continue;
         }
-        cout << "Receiving ACK packet " << packet.getAckNum();
+        cout << "Receiving ACK packet " << packet.getAckNum() << endl;;
         gettimeofday(&recv_time, NULL);
         timersub(&recv_time, &sent_time, &diff_time);
         rtoObj.srtt(diff_time);
@@ -125,7 +168,7 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
             _ERROR("Receiving FIN/ACK packet for teardown");
             continue;
         }
-        cout << "Receiving FIN/ACK packet " << packet.getAckNum();
+        cout << "Receiving FIN/ACK packet " << packet.getAckNum() << endl;
         received_finack = true;
     }
     ack_num = (ack_num + 1) % MAX_SEQ_NUM;
@@ -135,8 +178,9 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
     struct timeval init_time, now_time, diff_time, timeout, max_timeout;
     gettimeofday(&init_time, NULL);
     gettimeofday(&now_time, NULL);
-    max_timeout.tv_sec  = RTO_UBOUND / 1000000;
-    max_timeout.tv_usec = RTO_UBOUND % 1000000;
+    timeout = rtoObj.getRto();
+    max_timeout.tv_sec  = timeout.tv_sec * 2 + timeout.tv_usec * 2 / 1000000;
+    max_timeout.tv_usec = timeout.tv_usec * 2 % 1000000;
     timersub(&now_time, &init_time, &diff_time);
     retransmission = false;
 
@@ -160,7 +204,6 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
         break;
     }
 }
-
 
 int main(int argc, char *argv[])
 {
@@ -207,7 +250,7 @@ int main(int argc, char *argv[])
             errorAndExit("No connection possible for host: " + host);
     }
     
-    int seq_num, ack_num, cong_window, ssthresh, map_size;
+    int seq_num, ack_num, cong_window, sshthresh, bytes_sent, bytes_queued;
     simpleTCP recv_packet;
     struct sockaddr client_addr;
     socklen_t client_addr_length = sizeof(client_addr);
@@ -217,9 +260,8 @@ int main(int argc, char *argv[])
     srand(time(NULL));
     seq_num = 0;//rand() % MAX_SEQ_NUM; // random initial sequence number
     cong_window = INIT_CONG_SIZE;
-    ssthresh = INIT_SLOWSTART;
+    sshthresh = INIT_SLOWSTART;
     
-    struct timeval timeout;
     TCPrto rtoObj = TCPrto();
     
     // Receive SYN packet
@@ -250,7 +292,7 @@ int main(int argc, char *argv[])
 
         simpleTCP synack_packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_SYN | F_ACK, "", 0);
         if (!sendAll(sockfd, (void *)&synack_packet, synack_packet.getSegmentSize(), 0,
-                     (struct sockaddr *)&client_addr, client_addr_length))
+                     &client_addr, client_addr_length))
         {
             perror("sendAll() sending SYN/ACK");
         }
@@ -260,7 +302,7 @@ int main(int argc, char *argv[])
         }
 
         // Receive ACK packet
-        timeout = rtoObj.getRto();
+        struct timeval timeout = rtoObj.getRto();
         
         if (timeSocket(sockfd, &timeout) > 0)
         {
@@ -290,24 +332,25 @@ int main(int argc, char *argv[])
     data_left_to_read = true;
     data_left_to_send = true;
     
-    map_size = 0;
+    bytes_queued = 0;
+    bytes_sent = 0;
     
-    map<unsigned long long, simpleTCP> timeSent;
-    map<unsigned long long, simpleTCP>::iterator it;
+    vector<simpleTCP> unacked_packets;
+    unordered_map<simpleTCP, struct timeval> time_sent;
+    unordered_set<simpleTCP> packets_sent;
     
     ifstream ifs(filename);
-    
     char packet_buf[MAX_PAYLOAD];
     int payload_size = 0;
     bool already_read_buf = false; // there's probably a better way to implement this logic
-    int prev_ack_num = recv_packet.getAckNum();
-    int same_ack_count = 0;
     
     while (data_left_to_send)
     {
         int receiver_window = (int) recv_packet.getWindow();
         int real_window = min(cong_window, receiver_window); 
-        while (data_left_to_read) // loop is exited when there is no more to read OR when too much sent for window
+        // Enqueue data packet
+        // Loop is exited when there is no more to read OR when too much enqueued for window
+        while (data_left_to_read && bytes_queued < real_window) 
         {
             if (!already_read_buf)
             {
@@ -328,7 +371,7 @@ int main(int argc, char *argv[])
                 already_read_buf = false;
             }
             
-            if (real_window < payload_size + map_size)
+            if (real_window < payload_size + bytes_queued)
             {
                 already_read_buf = true;
                 break;
@@ -336,40 +379,31 @@ int main(int argc, char *argv[])
             else
             {
                 simpleTCP data_packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK, packet_buf, payload_size);
-                map_size += payload_size;
-                struct timeval cur_time;
-                gettimeofday(&cur_time, NULL);
-                unsigned long long microsec_time = cur_time.tv_sec * ULL_MEGA + cur_time.tv_usec;
-                timeSent[microsec_time] = data_packet;
-                if (!sendAll(sockfd, (void *)&data_packet, data_packet.getSegmentSize(), 0,
-                             (struct sockaddr *)&client_addr, client_addr_length))
-                {                    
-                    perror("sendAll() error in server while sending data");
-                }
-                else
-                {
-                    cout << "Sending data packet " << seq_num << " " << cong_window << " " << ssthresh << endl;
-                }
+                enqueuePacket(data_packet, unacked_packets, bytes_queued);
                 seq_num = (seq_num + payload_size) % MAX_SEQ_NUM;
             }
         }
-        
-        // congestion control
-        if (cong_window < 2 * ssthresh)
+
+        // Send data packets (at most real_window bytes)
+        if (unacked_packets.size() == 0)
         {
-            cong_window = cong_window * 2;
+            _ERROR("Somehow, no packets are in the queue");
+            continue;
         }
-        else if (cong_window < ssthresh)
+        for (int i = 0; i != unacked_packets.size(); ++i)
         {
-            cong_window = ssthresh;
+            simpleTCP& packet = unacked_packets[i];
+            if (bytes_sent + packet.getPayloadSize() > real_window)
+                break;
+            sendDataPacket(packet, time_sent, packets_sent, bytes_sent, cong_window,
+                           sshthresh, sockfd, &client_addr, client_addr_length);
         }
-        
-        // note that time has already passed between sending the packet and now
-        struct timeval ack_time, sent_time, time_passed, timeout_left;
+
+        // Note that time has already passed between sending the packet and now
+        struct timeval ack_time, sent_time, time_passed, timeout, timeout_left;
         timeout = rtoObj.getRto();
         gettimeofday(&ack_time, NULL); 
-        sent_time.tv_sec = timeSent.begin()->first / 1000000;
-        sent_time.tv_usec = timeSent.begin()->first % 1000000;
+        sent_time = time_sent[unacked_packets.front()];
         timersub(&ack_time, &sent_time, &time_passed); 
         timersub(&timeout, &time_passed, &timeout_left);
         
@@ -377,6 +411,7 @@ int main(int argc, char *argv[])
         if (timeSocket(sockfd, &timeout_left) > 0)
         {
             int nbytes = recvPacket_toh(sockfd, recv_packet, &client_addr, &client_addr_length);
+            int received_ack = recv_packet.getAckNum();
 
             if (nbytes < recv_packet.getHeaderSize() || !recv_packet.getACK())
             {
@@ -384,66 +419,34 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            cout << "Receiving ACK packet " << recv_packet.getAckNum() << endl;
-            if (prev_ack_num == recv_packet.getAckNum())
+            cout << "Receiving ACK packet " << received_ack << endl;
+            int npackets = packetsAcked(unacked_packets, received_ack);
+            ackPackets(npackets, unacked_packets, time_sent, packets_sent,
+                       bytes_queued, bytes_sent);
+
+            // Only do stuff if the ACK was valid
+            if (npackets > 0)
             {
-                same_ack_count++;
-            }
-            else
-            {
-                prev_ack_num = recv_packet.getAckNum();
-                same_ack_count = 0;
-            }
-            if (recv_packet.getAckNum() == timeSent.begin()->second.getSeqNum() + timeSent.begin()->second.getPayloadSize())
-            {
-                map_size -= timeSent.begin()->second.getPayloadSize();
-                timeSent.erase(timeSent.begin()); // actually the right ack, erase from map
-                
+                // Congestion control
+
                 rtoObj.srtt(time_passed);
-                timeout = rtoObj.getRto();
-                
-                if (cong_window >= ssthresh) // Congestion control
-                {
-                    cong_window++;
-                }
+                _DEBUG(to_string(npackets) + " ACKed");
             }
+            usleep(2000000);
         }
         else // timeout - Tahoe
         {
             _DEBUG("Timeout receiving ACK packet");
             rtoObj.rtoTimeout();
 
-            ssthresh = cong_window / 2;
-            cong_window = INIT_CONG_SIZE;
-            
-            int tahoe_data_sent = 0;
-            for (it = timeSent.begin(); it != timeSent.end(); it++)
-            {
-                if (cong_window < timeSent.begin()->second.getPayloadSize() + tahoe_data_sent)
-                {
-                    break;
-                }
-                struct timeval cur_time;
-                gettimeofday(&cur_time, NULL);
-                unsigned long long microsec_time = cur_time.tv_sec * ULL_MEGA + cur_time.tv_usec;
-                simpleTCP resent_data_packet = it->second;
-                timeSent[microsec_time] = resent_data_packet;
-                if (sendAll(sockfd, (void *)&resent_data_packet, resent_data_packet.getSegmentSize(), 0,
-                            (struct sockaddr *)&client_addr, client_addr_length) == -1)
-                {                    
-                    perror("sendAll() error in server while sending data");
-                }
-                else
-                {
-                    cout << "Sending data packet " << resent_data_packet.getSeqNum() << " " << cong_window << " " << ssthresh << " Retransmission" << endl;
-                }
-                tahoe_data_sent += timeSent.begin()->second.getPayloadSize();
-                timeSent.erase(it);
-            }
+            time_sent.clear();
+            bytes_sent = 0;
+
+            // Congestion control
         }
 
         // Check if data transfer is over
-        if (!data_left_to_read && timeSent.empty())
+        if (!data_left_to_read && unacked_packets.empty())
             break;
     }
     
