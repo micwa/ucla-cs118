@@ -112,7 +112,7 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
                         simpleTCP last_ack_packet)
 {
     simpleTCP packet;
-    ofstream ofs("out.data");
+    ofstream ofs("received.data");
 
     if (!ofs)
         errorAndExit("Can't create out.data");
@@ -142,11 +142,13 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
             }
             else if (isValidSeq(ack_num, packet_seq))   // Old packet
             {
+                _DEBUG("Old packet")
                 sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
             }
             else    // Out-of-order packet
             {
-                // Drop for now
+                _DEBUG("Out-of-order packet");
+                sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
             }
         }
         else        // Malformed packet (or recvfrom() error)
