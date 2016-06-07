@@ -7,13 +7,14 @@
 //
 
 #include "TCPrto.h"
+#include "logerr.h"
 
 using namespace std;
 
 TCPrto::TCPrto()
 {
     m_rto = INIT_RTO * 1000;
-    m_srtt = 0;
+    m_srtt = -1;
 }
 
 void TCPrto::rtoTimeout()
@@ -23,7 +24,8 @@ void TCPrto::rtoTimeout()
 
 void TCPrto::srtt(struct timeval rtt)
 {
-    if (m_srtt == 0) // adaptive rto
+    _DEBUG("rtt.tv_usec is " + to_string(rtt.tv_usec));
+    if (m_srtt == -1) // adaptive rto
     {
         m_srtt = rtt.tv_usec + rtt.tv_sec * 1000000; // best guess with 1 data set
     }
@@ -44,5 +46,7 @@ struct timeval TCPrto::getRto()
     struct timeval rtotv;
     rtotv.tv_sec = m_rto / 1000000;
     rtotv.tv_usec = m_rto % 1000000;
+    _DEBUG("m_rto is " + to_string(m_rto));
+    _DEBUG("tv_sec is " + to_string(rtotv.tv_sec));
     return rtotv;
 }
