@@ -149,13 +149,13 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
             else if (isValidSeq(ack_num, packet_seq))   // Old packet
             {
                 cout << endl;
-                _DEBUG("Old packet");
+                _DEBUG("Out-of-order packet");
                 sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
             }
             else    // Out-of-order packet
             {
                 cout << endl;
-                _DEBUG("Out-of-order packet");
+                _DEBUG("Old packet");
                 sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
             }
         }
