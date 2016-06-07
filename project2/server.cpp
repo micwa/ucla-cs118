@@ -145,7 +145,7 @@ static void teardown(int sockfd, int seq_num, int ack_num, int cong_window, int 
             rtoObj.rtoTimeout();
             continue;
         }
-        cout << "Receiving packet " << packet.getAckNum() << endl;;
+        cout << "Receiving packet " << packet.getAckNum() << endl;
         gettimeofday(&recv_time, NULL);
         timersub(&recv_time, &sent_time, &diff_time);
         rtoObj.srtt(diff_time);
