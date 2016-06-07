@@ -50,10 +50,10 @@ static void enqueuePacket(simpleTCP& packet, vector<simpleTCP>& packets, int& by
 }
 
 static void sendDataPacket(simpleTCP& packet, unordered_map<simpleTCP, struct timeval>& time_sent,
-                           unordered_set<simpleTCP>& packets_sent, int& bytes_sent, int cong_window, int sshthresh,
+                           unordered_set<simpleTCP>& packets_sent, int& bytes_sent, int cong_window, int ssthresh,
                            int sockfd, const struct sockaddr *client_addr, socklen_t client_addr_length)
 {
-    cout << "Sending data packet " << ntohs(packet.getSeqNum()) << " " << cong_window << " " << sshthresh;
+    cout << "Sending packet " << ntohs(packet.getSeqNum()) << " " << cong_window << " " << ssthresh;
     if (packets_sent.count(packet) > 0)
         cout << " Retransmission";
     cout << endl;
@@ -99,8 +99,8 @@ static void ackPackets(int npackets, vector<simpleTCP>& packets, unordered_map<s
     packets.erase(packets.begin(), packets.begin() + npackets);
 }
 
-static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *client_addr, socklen_t client_addr_length, 
-                     TCPrto rtoObj)
+static void teardown(int sockfd, int seq_num, int ack_num, int cong_window, int ssthresh,
+                     struct sockaddr *client_addr, socklen_t client_addr_length, TCPrto rtoObj)
 {
     simpleTCP packet;
     bool retransmission = false;
@@ -109,10 +109,10 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
     while (true)
     {
         // Send FIN packet
-        cout << "Sending FIN packet";
+        cout << "Sending packet " << seq_num << " " << cong_window << " " << ssthresh;
         if (retransmission)
             cout << " Retransmission";
-        cout << endl;
+        cout << " FIN" << endl;
         retransmission = true;
 
         struct timeval sent_time, recv_time, diff_time;
@@ -145,7 +145,7 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
             rtoObj.rtoTimeout();
             continue;
         }
-        cout << "Receiving ACK packet " << packet.getAckNum() << endl;;
+        cout << "Receiving packet " << packet.getAckNum() << endl;;
         gettimeofday(&recv_time, NULL);
         timersub(&recv_time, &sent_time, &diff_time);
         rtoObj.srtt(diff_time);
@@ -168,7 +168,7 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
             _ERROR("Receiving FIN/ACK packet for teardown");
             continue;
         }
-        cout << "Receiving FIN/ACK packet " << packet.getAckNum() << endl;
+        cout << "Receiving packet " << packet.getAckNum() << endl;
         received_finack = true;
     }
     ack_num = (ack_num + 1) % MAX_SEQ_NUM;
@@ -249,7 +249,7 @@ int main(int argc, char *argv[])
     }
     
     int seq_num, ack_num, bytes_sent, bytes_queued;
-    double cong_window, sshthresh;
+    double cong_window, ssthresh;
     simpleTCP recv_packet;
     struct sockaddr client_addr;
     socklen_t client_addr_length = sizeof(client_addr);
@@ -259,7 +259,7 @@ int main(int argc, char *argv[])
     srand(time(NULL));
     seq_num = 0;//rand() % MAX_SEQ_NUM; // random initial sequence number
     cong_window = INIT_CONG_SIZE;
-    sshthresh = INIT_SLOWSTART;
+    ssthresh = INIT_SLOWSTART;
     
     TCPrto rtoObj = TCPrto();
     
@@ -275,7 +275,7 @@ int main(int argc, char *argv[])
         }
         break;
     }
-    cout << "Receiving SYN packet" << endl;
+    cout << "Receiving packet " << recv_packet.getAckNum() << endl;
     ack_num = (recv_packet.getSeqNum() + 1) % MAX_SEQ_NUM;
     
     while (true)
@@ -283,10 +283,10 @@ int main(int argc, char *argv[])
         struct timeval sent_syn, recv_acksyn, diff_syn;
         
         // Send SYN/ACK packet
-        cout << "Sending SYN/ACK packet " << seq_num << " " << ack_num;
+        cout << "Sending packet " << seq_num << " " << cong_window << " " << ssthresh;
         if (retransmission)
             cout << " Retransmission";
-        cout << endl;
+        cout << " SYN" << endl;
         retransmission = true;
 
         simpleTCP synack_packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_SYN | F_ACK, "", 0);
@@ -398,8 +398,9 @@ int main(int argc, char *argv[])
             simpleTCP& packet = unacked_packets[i];
             if (bytes_sent + packet.getPayloadSize() > real_window)
                 break;
+
             sendDataPacket(packet, time_sent, packets_sent, bytes_sent, (int) cong_window,
-                           sshthresh, sockfd, &client_addr, client_addr_length);
+                           ssthresh, sockfd, &client_addr, client_addr_length);
         }
 
         // Note that time has already passed between sending the packet and now
@@ -422,7 +423,7 @@ int main(int argc, char *argv[])
                 continue;
             }
 
-            cout << "Receiving ACK packet " << received_ack << endl;
+            cout << "Receiving packet " << received_ack << endl;
             int npackets = packetsAcked(unacked_packets, received_ack);
             ackPackets(npackets, unacked_packets, time_sent, packets_sent,
                        bytes_queued, bytes_sent);
@@ -453,7 +454,6 @@ int main(int argc, char *argv[])
                 rtoObj.srtt(time_passed);
                 _DEBUG(to_string(npackets) + " ACKed");
             }
-            usleep(2000000); // sleep 2 seconds (?)
         }
         else // timeout - Tahoe
         {
@@ -493,7 +493,8 @@ int main(int argc, char *argv[])
     }
     
     // FIN teardown
-    teardown(sockfd, seq_num, ack_num, &client_addr, client_addr_length, rtoObj);
+    teardown(sockfd, seq_num, ack_num, cong_window, ssthresh,
+             &client_addr, client_addr_length, rtoObj);
 
     return 0;
 }

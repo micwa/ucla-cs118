@@ -46,10 +46,10 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
     while (true)
     {
         // Send SYN
-        cout << "Sending SYN packet " << seq_num;
+        cout << "Sending packet " << ack_num;
         if (retransmission)
             cout << " Retransmission";
-        cout << endl;
+        cout << " SYN" << endl;
         retransmission = true;
 
         struct timeval sent_time, recv_time, diff_time;
@@ -81,7 +81,7 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
             rtoObj.rtoTimeout();
             continue;
         }
-        cout << "Receiving SYN/ACK packet" << endl;
+        cout << "Receiving packet " <<  packet.getSeqNum() << endl;
         gettimeofday(&recv_time, NULL);
         timersub(&recv_time, &sent_time, &diff_time);
         rtoObj.srtt(diff_time);
@@ -125,7 +125,8 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
         // Packet must have at least a header and an ACK
         if (nbytes >= packet.getHeaderSize() && packet.getACK())
         {
-            cout << "Receiving data packet " << packet_seq;
+            cout << "Receiving packet " << packet_seq;
+            //cout << "Receiving data packet " << packet_seq;
             if (packet_seq == ack_num)  // In-order packet
             {
                 ofs.write(packet.getMessage(), packet.getPayloadSize());
@@ -178,10 +179,10 @@ static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_
     while (true)
     {
         // Send FIN/ACK
-        cout << "Sending FIN/ACK packet " << ack_num;
+        cout << "Sending packet " << ack_num;
         if (retransmission)
             cout << " Retransmission";
-        cout << endl;
+        cout << " FIN" << endl;
         retransmission = true;
 
         packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK|F_FIN, "", 0);
@@ -216,7 +217,7 @@ static void teardown(int sockfd, struct sockaddr *server_addr, socklen_t server_
         }
 
         // Everything OK
-        cout << "Receiving ACK packet " << packet.getAckNum() << endl;
+        cout << "Receiving packet " << packet.getSeqNum() << endl;
         break;
     }
 }

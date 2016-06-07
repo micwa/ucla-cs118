@@ -17,7 +17,7 @@ const int INIT_SLOWSTART = 15360;
 
 // Timers
 const int INIT_RTO = 500; // ms
-const int RTO_UBOUND = 20000000; // us -> 20 sec
+const int RTO_UBOUND = 2000000; // us -> 20 sec
 
 // For server
 const int BACKLOG = 20;
