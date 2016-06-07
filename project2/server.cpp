@@ -187,9 +187,7 @@ static void teardown(int sockfd, int seq_num, int ack_num, struct sockaddr *clie
     while (timercmp(&diff_time, &max_timeout, <))
     {
         // Send ACK packet
-        int new_ack = (ack_num + 1) % MAX_SEQ_NUM;
-        
-        packet = makePacket_ton(seq_num, new_ack, RECV_WINDOW, F_ACK, "", 0);
+        packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK, "", 0);
         sendAck(sockfd, client_addr, client_addr_length, packet, retransmission);
         retransmission = true;
         
