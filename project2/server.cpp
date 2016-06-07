@@ -187,8 +187,18 @@ static void teardown(int sockfd, int seq_num, int ack_num, int cong_window, int 
     while (timercmp(&diff_time, &max_timeout, <))
     {
         // Send ACK packet
+        cout << "Sending packet " << seq_num << " " << cong_window << " " << ssthresh;
+        if (retransmission)
+            cout << " Retransmission";
+        cout << endl;
+        retransmission = true;
+
         packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK, "", 0);
-        sendAck(sockfd, client_addr, client_addr_length, packet, retransmission);
+        if (!sendAll(sockfd, (void *)&packet, packet.getSegmentSize(), 0,
+                     client_addr, client_addr_length))
+        {
+            perror("sendAll() sending ACK");
+        }
         retransmission = true;
         
         timersub(&max_timeout, &diff_time, &timeout);
@@ -283,7 +293,7 @@ int main(int argc, char *argv[])
         struct timeval sent_syn, recv_acksyn, diff_syn;
         
         // Send SYN/ACK packet
-        cout << "Sending packet " << seq_num << " " << cong_window << " " << ssthresh;
+        cout << "Sending packet " << seq_num << " " << (int)cong_window << " " << (int)ssthresh;
         if (retransmission)
             cout << " Retransmission";
         cout << " SYN" << endl;
@@ -396,6 +406,9 @@ int main(int argc, char *argv[])
         for (int i = 0; i != unacked_packets.size(); ++i)
         {
             simpleTCP& packet = unacked_packets[i];
+
+            if (time_sent.count(packet) > 0)
+                continue;
             if (bytes_sent + packet.getPayloadSize() > real_window)
                 break;
 
@@ -428,31 +441,27 @@ int main(int argc, char *argv[])
             ackPackets(npackets, unacked_packets, time_sent, packets_sent,
                        bytes_queued, bytes_sent);
 
-            if (prev_ack == received_ack)
-            {
-                dup_ack_count++;
-            }
-            else
-            {
-                prev_ack = received_ack;
-                dup_ack_count = 0;
-            }
-            
-            
             // Only do stuff if the ACK was valid
             if (npackets > 0)
             {
                 // Congestion control
                 if (cong_window < ssthresh) // slow start
                 {
-                    cong_window++;
+                    cong_window += MAX_PAYLOAD;
                 }
                 else // Congestion Avoidance
                 {
                     cong_window += MAX_PAYLOAD * MAX_PAYLOAD  / cong_window;
                 }
+
+                prev_ack = received_ack;
+                dup_ack_count = 0;
                 rtoObj.srtt(time_passed);
                 _DEBUG(to_string(npackets) + " ACKed");
+            }
+            else
+            {
+                ++dup_ack_count;
             }
         }
         else // timeout - Tahoe
@@ -466,12 +475,13 @@ int main(int argc, char *argv[])
             // Congestion control
             if (cong_window < ssthresh) // slow start
             {
-                ssthresh = cong_window/2;
+                ssthresh = max((int)cong_window / 2, INIT_CONG_SIZE);
                 cong_window = INIT_CONG_SIZE;
             }
             else // Congestion Avoidance
             {
-                cong_window /= 2;
+                cong_window = max((int) cong_window / 2, INIT_CONG_SIZE);
+                ssthresh = cong_window;
             }
         }
 
@@ -483,12 +493,12 @@ int main(int argc, char *argv[])
             time_sent.clear();
             bytes_sent = 0;
             
-            ssthresh = cong_window / 2;
+            ssthresh = max((int)cong_window / 2, INIT_CONG_SIZE);
             cong_window = INIT_CONG_SIZE;
         }
         
         // Check if data transfer is over
-        if (!data_left_to_read && unacked_packets.empty())
+        if (!data_left_to_read && !already_read_buf && unacked_packets.empty())
             break;
     }
     
