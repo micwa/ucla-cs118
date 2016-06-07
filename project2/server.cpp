@@ -132,8 +132,9 @@ static void teardown(int sockfd, int seq_num, int ack_num, int cong_window, int 
             int nbytes = recvPacket_toh(sockfd, packet, client_addr, &client_addr_length);
             
             // Packet must have at least a header, be ACK, and have the proper sequence number
+            // The receiver must also expect ack_num+1 (to indicate it received the FIN)
             if (nbytes < packet.getHeaderSize() || !packet.getACK() ||
-                packet.getSeqNum() != ack_num)
+                packet.getSeqNum() != ack_num || packet.getAckNum() != (seq_num + 1) % MAX_SEQ_NUM)
             {
                 _ERROR("Receiving ACK packet for teardown");
                 continue;
