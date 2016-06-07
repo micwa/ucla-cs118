@@ -6,6 +6,7 @@
 #include <fstream>
 #include <thread>
 #include <chrono>
+#include <unordered_map>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -98,7 +99,10 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
 
 static bool isValidSeq(int a, int b)
 {
-    if (b - a + 1 <= MAX_SEQ_NUM/2 || b - a + 1 + MAX_SEQ_NUM <= MAX_SEQ_NUM/2)
+    int forward = b - a + 1;
+    int around = MAX_SEQ_NUM - a + b + 1;
+    if (forward <= MAX_SEQ_NUM/2 && forward >= 0 ||
+        around <= MAX_SEQ_NUM/2 && around >= 0)
         return true;
     return false;
 }
@@ -113,6 +117,7 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
 {
     simpleTCP packet;
     ofstream ofs("received.data");
+    unordered_map<int, simpleTCP> buffered_packets;   // Map seq_num -> packets
 
     if (!ofs)
         errorAndExit("Can't create out.data");
@@ -125,36 +130,51 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
         // Packet must have at least a header and an ACK
         if (nbytes >= packet.getHeaderSize() && packet.getACK())
         {
-            cout << "Receiving packet " << packet_seq;
             //cout << "Receiving data packet " << packet_seq;
             if (packet_seq == ack_num)  // In-order packet
             {
-                ofs.write(packet.getMessage(), packet.getPayloadSize());
-
-                ack_num = (ack_num + packet.getPayloadSize()) % MAX_SEQ_NUM;
+                cout << "Receiving packet " << packet_seq;
                 if (packet.getFIN())
-                {
-                    cout << " FIN" << endl;
-                    ack_num = (ack_num + 1) % MAX_SEQ_NUM;
-                }
-                else
-                    cout << endl;
+                    cout << " FIN";
+                cout << endl;
 
+                buffered_packets[packet_seq] = packet;
+
+                // Check if this ACK fills any gaps
+                int acked = 0;
+                while (buffered_packets.count(ack_num) > 0)
+                {
+                    ++acked;
+                    _DEBUG("Acked packet " + to_string(ack_num));
+                    packet = buffered_packets[ack_num];
+                    buffered_packets.erase(ack_num);
+                    assert(buffered_packets.count(ack_num) == 0);
+                    ofs.write(packet.getMessage(), packet.getPayloadSize());
+
+                    ack_num = (ack_num + packet.getPayloadSize()) % MAX_SEQ_NUM;
+                    if (packet.getFIN())
+                    {
+                        ack_num = (ack_num + 1) % MAX_SEQ_NUM;
+                        break;
+                    }
+                }
+                _DEBUG(to_string(acked) + " ACKed");
                 last_ack_packet = makePacket_ton(seq_num, ack_num, RECV_WINDOW, F_ACK, "", 0);
                 sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, false);
 
                 if (packet.getFIN())
                     break;
             }
-            else if (isValidSeq(ack_num, packet_seq))   // Old packet
+            else if (isValidSeq(ack_num, packet_seq))   // Out-of-order packet to be buffered
             {
-                cout << endl;
+                cout << "Receiving packet " << packet_seq << endl;
                 _DEBUG("Out-of-order packet");
+                buffered_packets[packet_seq] = packet;
                 sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
             }
-            else    // Out-of-order packet
+            else    // Old packet
             {
-                cout << endl;
+                cout << "Receiving packet " << packet_seq << endl;
                 _DEBUG("Old packet");
                 sendAck(sockfd, server_addr, server_addr_length, last_ack_packet, true);
             }
