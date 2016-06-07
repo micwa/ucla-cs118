@@ -414,6 +414,8 @@ int main(int argc, char *argv[])
 
             sendDataPacket(packet, time_sent, packets_sent, bytes_sent, (int) cong_window,
                            ssthresh, sockfd, &client_addr, client_addr_length);
+            if (packet.getSeqNum() == prev_ack)
+                dup_ack_count = 0;
         }
 
         // Note that time has already passed between sending the packet and now
