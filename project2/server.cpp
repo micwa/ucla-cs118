@@ -348,6 +348,7 @@ int main(int argc, char *argv[])
         int real_window = min(cong_window, receiver_window); 
         // Enqueue data packet
         // Loop is exited when there is no more to read OR when too much enqueued for window
+        // 'Queue' is actually a vector
         while (data_left_to_read && bytes_queued < real_window) 
         {
             if (!already_read_buf)
@@ -426,11 +427,18 @@ int main(int argc, char *argv[])
             if (npackets > 0)
             {
                 // Congestion control
-
+                if (cong_window < ssthresh) // slow start
+                {
+                    cong_window++;
+                }
+                else // Congestion Avoidance
+                {
+                    ;
+                }
                 rtoObj.srtt(time_passed);
                 _DEBUG(to_string(npackets) + " ACKed");
             }
-            usleep(2000000);
+            usleep(2000000); // sleep 2 seconds (?)
         }
         else // timeout - Tahoe
         {
@@ -441,6 +449,15 @@ int main(int argc, char *argv[])
             bytes_sent = 0;
 
             // Congestion control
+            if (cong_window < ssthresh) // slow start
+            {
+                ssthresh = cong_window/2;
+                cong_window = INIT_CONG_SIZE;
+            }
+            else // Congestion Avoidance
+            {
+                cong_window /= 2;
+            }
         }
 
         // Check if data transfer is over
