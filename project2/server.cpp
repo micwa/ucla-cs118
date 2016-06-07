@@ -248,7 +248,8 @@ int main(int argc, char *argv[])
             errorAndExit("No connection possible for host: " + host);
     }
     
-    int seq_num, ack_num, cong_window, sshthresh, bytes_sent, bytes_queued;
+    int seq_num, ack_num, bytes_sent, bytes_queued;
+    double cong_window, sshthresh;
     simpleTCP recv_packet;
     struct sockaddr client_addr;
     socklen_t client_addr_length = sizeof(client_addr);
@@ -342,10 +343,13 @@ int main(int argc, char *argv[])
     int payload_size = 0;
     bool already_read_buf = false; // there's probably a better way to implement this logic
     
+    int prev_ack = -1;
+    int dup_ack_count = 0;
+    
     while (data_left_to_send)
     {
         int receiver_window = (int) recv_packet.getWindow();
-        int real_window = min(cong_window, receiver_window); 
+        int real_window = min((int) cong_window, receiver_window); 
         // Enqueue data packet
         // Loop is exited when there is no more to read OR when too much enqueued for window
         // 'Queue' is actually a vector
@@ -394,7 +398,7 @@ int main(int argc, char *argv[])
             simpleTCP& packet = unacked_packets[i];
             if (bytes_sent + packet.getPayloadSize() > real_window)
                 break;
-            sendDataPacket(packet, time_sent, packets_sent, bytes_sent, cong_window,
+            sendDataPacket(packet, time_sent, packets_sent, bytes_sent, (int) cong_window,
                            sshthresh, sockfd, &client_addr, client_addr_length);
         }
 
@@ -423,6 +427,17 @@ int main(int argc, char *argv[])
             ackPackets(npackets, unacked_packets, time_sent, packets_sent,
                        bytes_queued, bytes_sent);
 
+            if (prev_ack == received_ack)
+            {
+                dup_ack_count++;
+            }
+            else
+            {
+                prev_ack = received_ack;
+                dup_ack_count = 0;
+            }
+            
+            
             // Only do stuff if the ACK was valid
             if (npackets > 0)
             {
@@ -433,7 +448,7 @@ int main(int argc, char *argv[])
                 }
                 else // Congestion Avoidance
                 {
-                    ;
+                    cong_window += MAX_PAYLOAD * MAX_PAYLOAD  / cong_window;
                 }
                 rtoObj.srtt(time_passed);
                 _DEBUG(to_string(npackets) + " ACKed");
@@ -460,6 +475,18 @@ int main(int argc, char *argv[])
             }
         }
 
+        if (dup_ack_count == 3) // fast retransmit and revert to slow start
+        {
+            _DEBUG("Fast retransmit after 3 duplicate ACKs");
+            rtoObj.rtoTimeout();
+            
+            time_sent.clear();
+            bytes_sent = 0;
+            
+            ssthresh = cong_window / 2;
+            cong_window = INIT_CONG_SIZE;
+        }
+        
         // Check if data transfer is over
         if (!data_left_to_read && unacked_packets.empty())
             break;
