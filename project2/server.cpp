@@ -448,13 +448,9 @@ int main(int argc, char *argv[])
             {
                 // Congestion control
                 if (cong_window < ssthresh) // slow start
-                {
                     cong_window += MAX_PAYLOAD;
-                }
                 else // Congestion Avoidance
-                {
                     cong_window += MAX_PAYLOAD * MAX_PAYLOAD  / cong_window;
-                }
 
                 prev_ack = received_ack;
                 dup_ack_count = 0;
@@ -469,32 +465,21 @@ int main(int argc, char *argv[])
         else // timeout - Tahoe
         {
             _DEBUG("Timeout receiving ACK packet");
-            rtoObj.rtoTimeout();
-
             time_sent.clear();
             bytes_sent = 0;
 
-            // Congestion control
-            if (cong_window < ssthresh) // slow start
-            {
-                ssthresh = max((int)cong_window / 2, INIT_CONG_SIZE);
-                cong_window = INIT_CONG_SIZE;
-            }
-            else // Congestion Avoidance
-            {
-                cong_window = max((int) cong_window / 2, INIT_CONG_SIZE);
-                ssthresh = cong_window;
-            }
+            rtoObj.rtoTimeout();
+            ssthresh = max((int)cong_window / 2, INIT_CONG_SIZE);
+            cong_window = INIT_CONG_SIZE;
         }
 
         if (dup_ack_count == 3) // fast retransmit and revert to slow start
         {
             _DEBUG("Fast retransmit after 3 duplicate ACKs");
-            rtoObj.rtoTimeout();
-            
             time_sent.clear();
             bytes_sent = 0;
-            
+
+            rtoObj.rtoTimeout();
             ssthresh = max((int)cong_window / 2, INIT_CONG_SIZE);
             cong_window = INIT_CONG_SIZE;
         }
