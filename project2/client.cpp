@@ -47,7 +47,7 @@ static simpleTCP handshake(int sockfd, struct sockaddr *server_addr, socklen_t s
     while (true)
     {
         // Send SYN
-        cout << "Sending packet " << ack_num;
+        cout << "Sending packet";
         if (retransmission)
             cout << " Retransmission";
         cout << " SYN" << endl;
