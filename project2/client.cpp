@@ -117,10 +117,10 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
 {
     simpleTCP packet;
     ofstream ofs("received.data");
-    unordered_map<int, simpleTCP> buffered_packets;   // Map seq_num -> packets
+    unordered_map<int, simpleTCP> buffered_packets;   // Map seq_num -> packet
 
     if (!ofs)
-        errorAndExit("Can't create out.data");
+        errorAndExit("Can't create received.data");
 
     while (true)
     {
@@ -130,7 +130,6 @@ static void receiveFile(int sockfd, struct sockaddr *server_addr, socklen_t serv
         // Packet must have at least a header and an ACK
         if (nbytes >= packet.getHeaderSize() && packet.getACK())
         {
-            //cout << "Receiving data packet " << packet_seq;
             if (packet_seq == ack_num)  // In-order packet
             {
                 cout << "Receiving packet " << packet_seq;
